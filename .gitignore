@@ -1,0 +1,7 @@
+# Midlertidige Office-filer
+~$*
+# Windows
+Thumbs.db
+desktop.ini
+# Lokale Claude-innstillinger
+.claude/settings.local.json
