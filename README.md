@@ -14,6 +14,10 @@ og uten byggesteg. Den virker offline og lagrer alt lokalt på enheten (localSto
 | `tools/lag-datafil.ps1` | Lager `www/planter-data.js` fra `data/planter.json`. |
 | `tools/server.ps1` | Liten lokal webserver for testing på PC. |
 | `tools/lag-ikoner.ps1` | Lager app-ikonene i `www/icons/`. |
+| `tools/hent-bilder.ps1` | Henter plantebilder fra Wikipedia/Commons til `www/img/` og lisensinfo til `data/bilder.json`. |
+| `data/bilde-overstyring.json` | Velg et annet bilde for en plante (artikkel eller `File:`-navn på Commons). |
+| `tools/kontaktark.ps1` | Lager oversiktsark over alle bildene for kontroll. |
+| `tools/komprimer-bilder.ps1` | Krymper bildene (480 px, JPEG 78) – kjør etter nye bilder. |
 | `.github/workflows/pages.yml` | Publiserer `www/` til GitHub Pages ved push til `main`. |
 | `DEPLOY.md` | Steg for steg: konto, publisering og installasjon på telefon. |
 
@@ -33,9 +37,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\server.ps1
   `powershell -File tools\lag-datafil.ps1`. NB: en telefon som allerede har egne endringer
   beholder sin egen liste til man trykker «Gå tilbake til original planteliste».
 
+## Bilder
+
+Bildene kommer fra Wikipedia/Wikimedia Commons under fri lisens (fotograf og lisens vises under bildet og
+på siden «Om bildene» i appen). Bytte et bilde:
+
+1. Finn et bedre bilde på commons.wikimedia.org og kopier filnavnet (`File:...jpg`).
+2. Legg det inn i `data/bilde-overstyring.json`, f.eks. `{ "Fagus sylvatica f. purpurea": "File:Fagus sylvatica purpurea.jpg" }`.
+3. Kjør `powershell -File tools\hent-bilder.ps1 -Bare "Fagus sylvatica f. purpurea"` og deretter `tools\lag-datafil.ps1`.
+
 ## Funksjoner
 
-- Tre øvingsmåter: flervalg, skriv svaret (tåler små skrivefeil) og flashkort.
+- Tre øvingsmåter: flervalg (med bilde av hvert alternativ), skriv svaret (tåler små skrivefeil) og flashkort.
+- 🔊 Opplesning av navn (nettleserens talesyntese, norsk stemme hvis telefonen har det). Kan leses opp automatisk.
 - Retning: latin → norsk, norsk → latin eller blandet. Filter på gruppe.
 - Smart repetisjon (Leitner-bokser: 0, 1, 2, 4, 7, 14, 30 dager). Feil svar kommer igjen i samme økt.
 - Når flere arter har samme norske navn (f.eks. «Prydkirsebær»), godtas alle riktige svar.

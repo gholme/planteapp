@@ -42,6 +42,58 @@
       .trim();
   }
   function genus(p) { return normalize(p.latin).split(' ')[0]; }
+
+  // ---------- Bilder ----------
+  var ORIG_BY_ID = {}, ORIG_BY_LATIN = {};
+  ORIGINAL.forEach(function (p) { ORIG_BY_ID[p.id] = p; ORIG_BY_LATIN[normalize(p.latin)] = p; });
+  // Bilde for en plante. Faller tilbake til originallisten, så også eldre redigerte lister får bilder.
+  function imageOf(p) {
+    if (p.bilde) return p.bilde;
+    var o = ORIG_BY_ID[p.id];
+    if (o && o.bilde && normalize(o.latin) === normalize(p.latin)) return o.bilde;
+    o = ORIG_BY_LATIN[normalize(p.latin)];
+    return o && o.bilde ? o.bilde : null;
+  }
+  function imgHtml(p, cls) {
+    var b = imageOf(p);
+    if (!b) return '<div class="noimg ' + (cls || '') + '" aria-hidden="true">🌿</div>';
+    return '<img class="' + (cls || '') + '" src="' + esc(b.fil) + '" alt="' + esc(p.norsk) + '" loading="lazy" decoding="async">';
+  }
+
+  // ---------- Opplesning ----------
+  var voice = null;
+  var canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  function pickVoice() {
+    var vs = window.speechSynthesis.getVoices() || [];
+    voice = vs.filter(function (v) { return /^(nb|no|nn)\b/i.test(v.lang); })[0] || null;
+  }
+  if (canSpeak) {
+    pickVoice();
+    if ('onvoiceschanged' in window.speechSynthesis) window.speechSynthesis.onvoiceschanged = pickVoice;
+  }
+  function speechText(t) {
+    return String(t || '')
+      .replace(/×/g, ' ')
+      .replace(/\bf\.\s/g, 'forma ')
+      .replace(/\bvar\.\s/g, 'varietet ')
+      .replace(/\bsubsp\.\s/g, 'underart ')
+      .replace(/['"‘’«»]/g, '')
+      .replace(/[()]/g, ', ');
+  }
+  function speak(t) {
+    if (!canSpeak) { toast('Opplesning støttes ikke på denne enheten'); return; }
+    var s = window.speechSynthesis;
+    s.cancel();
+    var u = new SpeechSynthesisUtterance(speechText(t));
+    u.lang = voice ? voice.lang : 'nb-NO';
+    if (voice) u.voice = voice;
+    u.rate = 0.85;
+    s.speak(u);
+  }
+  function sayBtn(text, cls) {
+    if (!canSpeak) return '';
+    return '<button type="button" class="say ' + (cls || '') + '" data-act="say" data-text="' + esc(text) + '" aria-label="Les opp ' + esc(text) + '">🔊</button>';
+  }
   function levenshtein(a, b) {
     if (a === b) return 0;
     var m = a.length, n = b.length;
@@ -81,7 +133,7 @@
     return {
       plants: null, // null = bruk originallisten
       progress: {},
-      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true },
+      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true, autoSpeak: true },
       streak: { last: null, count: 0 }
     };
   }
@@ -330,6 +382,7 @@
       '<div class="setting"><span>Spørsmål per økt</span>' + select('size', [10, 15, 20, 30], st.size) + '</div>' +
       '<div class="setting"><span>Nye planter per økt</span>' + select('newPer', [3, 5, 8, 12, 20], st.newPer) + '</div>' +
       '<label class="check"><input type="checkbox" data-set="includeUnsure"' + (st.includeUnsure ? ' checked' : '') + '> Ta med planter merket «usikker»</label>' +
+      (canSpeak ? '<label class="check"><input type="checkbox" data-set="autoSpeak"' + (st.autoSpeak ? ' checked' : '') + '> 🔊 Les opp spørsmålet automatisk</label>' : '') +
       '</div>' +
 
       '<button class="btn primary start" data-act="startTest">▶ Start test' +
@@ -339,6 +392,7 @@
       '<a class="btn ghost" href="#/liste">📋 Plantelisten</a>' +
       '<a class="btn ghost" href="#/stat">📊 Statistikk</a>' +
       '<a class="btn ghost" href="#/data">💾 Sikkerhetskopi</a>' +
+      '<a class="btn ghost" href="#/bilder">📷 Om bildene</a>' +
       '</div>';
     app.innerHTML = html;
   }
@@ -364,11 +418,21 @@
       sortTxt = 'Sorter: ' + sorter.slice(0, 8).map(esc).join(', ') + (sorter.length > 8 ? ' + ' + (sorter.length - 8) + ' til' : '');
     }
     var note = p.merknad && /^(Nyere|Eldre|Også)/.test(p.merknad) ? '<div class="meta">' + esc(p.merknad) + '</div>' : '';
+    var b = imageOf(p);
+    var credit = b ? '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>' : '';
     return '<div class="card facts">' +
-      '<div class="latin">' + esc(p.latin) + '</div>' +
-      '<div class="norsk">' + esc(p.norsk) + '</div>' +
+      (b ? imgHtml(p, 'big') + credit : '') +
+      '<div class="nameline"><span class="latin">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
+      '<div class="nameline"><span class="norsk">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
       '<div class="meta">' + esc(p.gruppe || '') + (sortTxt ? ' · ' + sortTxt : '') + '</div>' + note +
       '</div>';
+  }
+  function plantByAnswer(cur, text) {
+    var s = sides(cur), n = normalize(text);
+    if (normalize(cur.p[s.a]) === n) return cur.p;
+    var l = plants();
+    for (var i = 0; i < l.length; i++) if (usable(l[i]) && normalize(l[i][s.a]) === n) return l[i];
+    return null;
   }
 
   function renderPlay() {
@@ -384,21 +448,25 @@
       '<button class="btn quit" data-act="quit">✕ Avbryt</button>' +
       '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
       '<span class="count">' + s.firstDone + ' / ' + s.total + '</span></div>';
-    var promptHtml = '<div class="q">' + qLabel + '</div><div class="' + promptCls + '">' + esc(cur.p[sd.q]) + '</div>' + hint + again;
+    var promptHtml = '<div class="q">' + qLabel + '</div><div class="wordline"><span class="' + promptCls + '">' + esc(cur.p[sd.q]) + '</span>' +
+      sayBtn(cur.p[sd.q]) + '</div>' + hint + again;
     var body = '';
 
     if (s.mode === 'mc') {
       if (!cur.options) cur.options = mcOptions(cur);
       var acc = acceptedAnswers(cur).map(normalize);
-      body = '<div class="card prompt">' + promptHtml + '</div><div class="options">' +
+      body = '<div class="card prompt">' + promptHtml + '</div><div class="options tiles">' +
         cur.options.map(function (o, i) {
           var cls = '';
           if (cur.state === 'answered') {
             if (acc.indexOf(normalize(o)) >= 0) cls = ' right';
             else if (i === cur.picked) cls = ' wrong';
           }
-          return '<button class="btn' + cls + (sd.a === 'latin' ? ' latin' : '') + '" data-act="mc" data-i="' + i + '"' +
-            (cur.state === 'answered' ? ' disabled' : '') + '>' + esc(o) + '</button>';
+          var op = plantByAnswer(cur, o) || { norsk: o, latin: o };
+          return '<div class="opt' + cls + '"><button class="optbtn" data-act="mc" data-i="' + i + '"' +
+            (cur.state === 'answered' ? ' disabled' : '') + '>' + imgHtml(op, 'thumb') +
+            '<span class="lbl' + (sd.a === 'latin' ? ' latin' : '') + '">' + esc(o) + '</span></button>' +
+            sayBtn(o, 'corner') + '</div>';
         }).join('') + '</div>';
       if (cur.state === 'answered') {
         body += '<div class="feedback ' + (cur.ok ? 'ok' : 'no') + '">' + (cur.ok ? 'Riktig! 🎉' : 'Ikke helt.') + '</div>' +
@@ -425,7 +493,8 @@
       body = '<div class="card prompt flash" data-act="' + (cur.state === 'ask' ? 'reveal' : '') + '">' + promptHtml +
         (cur.state === 'ask'
           ? '<div class="hint" style="margin-top:22px">Trykk for å se svaret</div>'
-          : '<div class="answer"><div class="' + (sd.a === 'latin' ? 'word latin' : 'word') + '">' + esc(cur.p[sd.a]) + '</div></div>') +
+          : '<div class="answer"><div class="wordline"><span class="' + (sd.a === 'latin' ? 'word latin' : 'word') + '">' + esc(cur.p[sd.a]) + '</span>' +
+            sayBtn(cur.p[sd.a]) + '</div></div>') +
         '</div>';
       if (cur.state === 'ask') {
         body += '<button class="btn primary" data-act="reveal">Vis svar</button>';
@@ -436,6 +505,14 @@
       }
     }
     app.innerHTML = top + body;
+    if (cur.state === 'ask' && !cur.spoken && state.settings.autoSpeak && canSpeak) {
+      cur.spoken = true;
+      speak(cur.p[sd.q]);
+    }
+    if (cur.state !== 'ask') {
+      var fb = app.querySelector('.feedback') || app.querySelector('.facts');
+      if (fb) setTimeout(function () { fb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+    }
     var inp = document.getElementById('answer');
     if (inp) inp.focus();
     var nb = document.getElementById('nextBtn');
@@ -580,6 +657,21 @@
       '<p class="small muted" style="margin-top:16px">' + plants().length + ' planter i listen' + (state.plants ? ' (endret)' : ' (original)') + '.</p>';
   }
 
+  function renderCredits() {
+    var list = plants().filter(function (p) { return imageOf(p); })
+      .sort(function (a, b) { return a.latin.localeCompare(b.latin, 'nb'); });
+    app.innerHTML =
+      '<div class="topbar"><a class="btn ghost" href="#/">← Tilbake</a><h1 style="flex:1;margin:0;font-size:1.3rem">Om bildene</h1></div>' +
+      '<p class="small muted">Bildene er hentet fra Wikipedia og Wikimedia Commons og brukes under fri lisens. ' +
+      'Trykk på en plante for å se originalbildet og lisensen. Bildet viser arten – ikke nødvendigvis akkurat den sorten som selges.</p>' +
+      '<div class="card" style="padding:4px 12px"><ul class="plist">' + list.map(function (p) {
+        var b = imageOf(p);
+        return '<li><a href="' + esc(b.filside) + '" target="_blank" rel="noopener">' + imgHtml(p, 'mini') +
+          '<div class="names"><div class="latin">' + esc(p.latin) + '</div><div class="small muted">' + esc(b.fotograf) +
+          (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div></div></a></li>';
+      }).join('') + '</ul></div>';
+  }
+
   function exportText() {
     return JSON.stringify({ type: 'planteapp', versjon: 1, eksportert: new Date().toISOString(), planter: plants(), fremgang: state.progress, streak: state.streak });
   }
@@ -604,6 +696,7 @@
     if (!act) return;
     var st = state.settings, cur = session && session.queue[0];
     switch (act) {
+      case 'say': e.stopPropagation(); speak(el.getAttribute('data-text')); break;
       case 'mode': st.mode = el.getAttribute('data-mode'); save(); render(); break;
       case 'startTest': startSession(st.mode || 'mc'); break;
       case 'dir': st.dir = el.getAttribute('data-v'); save(); render(); break;
@@ -757,6 +850,7 @@
       case 'liste': if (parts[1]) renderEdit(decodeURIComponent(parts[1])); else renderList(); break;
       case 'stat': renderStats(); break;
       case 'data': renderData(); break;
+      case 'bilder': renderCredits(); break;
       default: renderHome();
     }
   }

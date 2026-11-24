@@ -9,7 +9,26 @@ var FILES = [
 ];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    return c.addAll(FILES).then(function () { return cacheImages(c); });
+  }).then(function () { return self.skipWaiting(); }));
+});
+
+// Plantebildene lagres også, slik at de vises uten nett. Feil på enkeltbilder stopper ikke installasjonen.
+function cacheImages(c) {
+  return fetch('img/filer.json', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (list) {
+      return Promise.all(list.map(function (f) {
+        return c.match(f).then(function (hit) { return hit || c.add(f).catch(function () {}); });
+      }));
+    })
+    .catch(function () {});
+}
+
+// Appen ber om at bildene lagres på nytt (f.eks. etter en oppdatering).
+self.addEventListener('message', function (e) {
+  if (e.data === 'cache-images') e.waitUntil(caches.open(CACHE).then(cacheImages));
 });
 
 self.addEventListener('activate', function (e) {
