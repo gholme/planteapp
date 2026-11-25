@@ -161,19 +161,43 @@
     var rec = { plant: plantId, blob: blob, created: Date.now() };
     return idbReq(photoStore('readwrite').add(rec)).then(function (key) { rec.key = key; cachePhoto(rec); });
   }
-  var fileInput = document.createElement('input');
-  fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.multiple = true; fileInput.hidden = true;
-  document.body.appendChild(fileInput);
+  // To skjulte filvelgere: én som åpner kameraet direkte, og én for galleriet.
+  // (Nyere Android viser bare galleriet hvis vi ikke ber om kamera selv.)
+  function makeInput(camera) {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.hidden = true;
+    if (camera) inp.setAttribute('capture', 'environment'); else inp.multiple = true;
+    inp.addEventListener('change', function () { onFiles(inp); });
+    document.body.appendChild(inp);
+    return inp;
+  }
+  var cameraInput = makeInput(true), galleryInput = makeInput(false);
   var pendingPlant = null;
   function pickPhoto(id) {
     if (!photoDb) { toast('Bilder kan ikke lagres på denne enheten'); return; }
-    pendingPlant = id;
-    fileInput.value = '';
-    fileInput.click(); // Android viser valget mellom kamera og galleri
+    var p = findPlant(id);
+    modalEl.innerHTML =
+      '<div class="card stack" role="dialog" aria-modal="true">' +
+      '<p><b>Legg til bilde' + (p ? ' av ' + esc(p.norsk) : '') + '</b></p>' +
+      '<button class="btn primary" data-pick="camera">📷 Ta bilde</button>' +
+      '<button class="btn" data-pick="gallery">🖼️ Velg fra galleri</button>' +
+      '<button class="btn ghost" data-pick="" style="width:100%">Avbryt</button></div>';
+    modalEl.hidden = false;
+    modalEl.onclick = function (e) {
+      var b = e.target.closest('[data-pick]');
+      if (!b && e.target !== modalEl) return;
+      modalEl.hidden = true; modalEl.onclick = null;
+      var kind = b && b.getAttribute('data-pick');
+      if (!kind) return;
+      var inp = kind === 'camera' ? cameraInput : galleryInput;
+      pendingPlant = id;
+      inp.value = '';
+      inp.click(); // må skje direkte i trykket, ellers blokkerer nettleseren det
+    };
   }
-  fileInput.addEventListener('change', function () {
-    var files = [].slice.call(fileInput.files || []), id = pendingPlant;
-    fileInput.value = ''; pendingPlant = null;
+  function onFiles(inp) {
+    var files = [].slice.call(inp.files || []), id = pendingPlant;
+    inp.value = ''; pendingPlant = null;
     if (!files.length || !id) return;
     toast('Lagrer bildet …');
     files.reduce(function (pr, f) {
@@ -183,7 +207,7 @@
       toast(files.length > 1 ? '📷 ' + files.length + ' bilder er lagt til' : '📷 Bildet er lagt til');
       refresh();
     }, function () { toast('Klarte ikke å lagre bildet'); refresh(); });
-  });
+  }
   function removePhoto(id, key) {
     var l = photos[id] || [], rec = null;
     for (var i = 0; i < l.length; i++) if (l[i].key === key) { rec = l.splice(i, 1)[0]; break; }
