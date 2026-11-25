@@ -136,9 +136,21 @@
     return '<button type="button" class="' + (cls || 'picbtn') + ' del" data-act="delPhoto" data-id="' + esc(pic.own.plant) + '" data-key="' + pic.own.key + '" aria-label="Slett bildet">🗑</button>';
   }
   // Stort bilde med ＋ og 🗑 oppå.
-  function picBlock(p, pic) {
+  // nav = { idx, n } gjør bildet sveipbart (plantesiden) og viser teller.
+  function picBlock(p, pic, nav) {
     if (!pic && !canPhoto) return '';
-    return '<div class="pic">' + picImg(pic, p.norsk, 'big') + addBtn(p) + delBtn(pic) + '</div>' + creditHtml(pic);
+    var sw = nav && nav.n > 1;
+    return '<div class="pic' + (sw ? ' swipe' : '') + '"' + (sw ? ' data-swipe="' + esc(p.id) + '" data-n="' + nav.n + '"' : '') + '>' +
+      picImg(pic, p.norsk, 'big' + (sw && slideDir ? ' slide-' + slideDir : '')) + addBtn(p) + delBtn(pic) +
+      (sw ? '<span class="piccount">' + (nav.idx + 1) + ' / ' + nav.n + '</span>' : '') + '</div>' + creditHtml(pic);
+  }
+  // Sveip til venstre/høyre for å bla mellom bildene.
+  var slideDir = '', swipeStart = null;
+  function showPic(id, idx, dir) {
+    plantPicIdx[id] = idx;
+    slideDir = dir;
+    refresh();
+    slideDir = '';
   }
 
   // Krymper bildet til maks 1024 px (JPEG), så det tar lite plass.
@@ -906,7 +918,7 @@
     }).join('') + '</div>' : '';
     var html = '<div class="topbar"><button class="btn ghost" data-act="back">← Tilbake</button><span style="flex:1"></span>' +
       '<a class="btn ghost" href="#/liste/' + encodeURIComponent(p.id) + '">✏️ Rediger</a></div>' +
-      '<div class="card facts">' + picBlock(p, pic) + strip +
+      '<div class="card facts">' + picBlock(p, pic, { idx: idx, n: pics.length }) + strip +
       '<div class="nameline"><span class="latin" style="font-size:1.2rem">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
       '<div class="nameline"><span class="norsk" style="font-size:1.3rem">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
       '<div class="meta">' + esc(p.gruppe || '') + '</div>' +
@@ -1225,6 +1237,22 @@
         break;
     }
   });
+
+  app.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest('[data-swipe]');
+    swipeStart = el && !e.target.closest('button') ? { x: e.clientX, y: e.clientY, el: el } : null;
+  });
+  app.addEventListener('pointerup', function (e) {
+    var s = swipeStart; swipeStart = null;
+    if (!s) return;
+    var dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    var id = s.el.getAttribute('data-swipe'), n = +s.el.getAttribute('data-n');
+    var cur = Math.max(0, Math.min(plantPicIdx[id] || 0, n - 1));
+    // Sveip mot venstre = neste bilde. Går rundt i ring.
+    showPic(id, dx < 0 ? (cur + 1) % n : (cur - 1 + n) % n, dx < 0 ? 'left' : 'right');
+  });
+  app.addEventListener('pointercancel', function () { swipeStart = null; });
 
   app.addEventListener('change', function (e) {
     var lf = e.target.getAttribute('data-lf');
