@@ -67,6 +67,8 @@ function Get-FileInfo([string]$file) {
   if (-not $p.imageinfo) { return $null }
   $ii = $p.imageinfo[0]; $m = $ii.extmetadata
   $artist = if ($m.Artist) { ($m.Artist.value -replace '<[^>]+>', '').Trim() } else { 'Wikimedia Commons' }
+  $na = [regex]::Match($artist, '^No machine-readable author provided\.\s*(.+?)\s+assumed')
+  if ($na.Success) { $artist = $na.Groups[1].Value } elseif ($artist -match '^No machine-readable') { $artist = 'Wikimedia Commons' }
   return @{
     thumb = $ii.thumburl; filePage = $ii.descriptionurl; mime = $ii.mime
     artist = $artist

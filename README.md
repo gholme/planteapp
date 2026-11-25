@@ -18,6 +18,8 @@ og uten byggesteg. Den virker offline og lagrer alt lokalt på enheten (localSto
 | `data/bilde-overstyring.json` | Velg et annet bilde for en plante (artikkel eller `File:`-navn på Commons). |
 | `tools/kontaktark.ps1` | Lager oversiktsark over alle bildene for kontroll. |
 | `tools/komprimer-bilder.ps1` | Krymper bildene (480 px, JPEG 78) – kjør etter nye bilder. |
+| `data/planteinfo.json` | Planteinfo (høyde, blomstring, herdighet, kjennetegn …) med kilder per felt. Nøkkel = latinsk navn. |
+| `tools/lag-infoliste.ps1` | Lager `Kontrolliste_planteinfo.xlsx` (verdier med kildenummer, kilder, usikre felt). |
 | `.github/workflows/pages.yml` | Publiserer `www/` til GitHub Pages ved push til `main`. |
 | `DEPLOY.md` | Steg for steg: konto, publisering og installasjon på telefon. |
 

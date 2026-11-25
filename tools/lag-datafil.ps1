@@ -8,6 +8,11 @@ $bf = Join-Path $root 'data\bilder.json'
 if (Test-Path $bf) {
   (Get-Content -Raw -Encoding UTF8 $bf | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $bilder[$_.Name] = $_.Value }
 }
+$infoMap = @{}
+$inf = Join-Path $root 'data\planteinfo.json'
+if (Test-Path $inf) {
+  (Get-Content -Raw -Encoding UTF8 $inf | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $infoMap[$_.Name] = $_.Value }
+}
 $i = 0; $files = New-Object System.Collections.Generic.List[string]
 $list = foreach ($p in $data) {
   $i++
@@ -25,12 +30,13 @@ $list = foreach ($p in $data) {
     $o.bilde = [ordered]@{ fil = $b.fil; fotograf = $b.fotograf; lisens = $b.lisens; filside = $b.filside }
     if (-not $files.Contains($b.fil)) { $files.Add($b.fil) }
   }
+  if ($infoMap.ContainsKey($p.latin)) { $o.info = $infoMap[$p.latin] }
   $o
 }
 $utf8 = New-Object System.Text.UTF8Encoding $false
-$json = ConvertTo-Json -InputObject @($list) -Depth 6 -Compress
+$json = ConvertTo-Json -InputObject @($list) -Depth 10 -Compress
 $out = "/* Generert av tools/lag-datafil.ps1 - original planteliste */`nwindow.PLANTER_ORIGINAL = $json;`n"
 [System.IO.File]::WriteAllText((Join-Path $root 'www\planter-data.js'), $out, $utf8)
 New-Item -ItemType Directory -Force (Join-Path $root 'www\img') | Out-Null
 [System.IO.File]::WriteAllText((Join-Path $root 'www\img\filer.json'), (ConvertTo-Json -InputObject @($files) -Compress), $utf8)
-"Skrev $i planter ($($files.Count) med bilde) til www/planter-data.js"
+"Skrev $i planter ($($files.Count) med bilde, $(@($list | Where-Object { $_.info }).Count) med planteinfo) til www/planter-data.js"

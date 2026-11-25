@@ -54,6 +54,13 @@
     o = ORIG_BY_LATIN[normalize(p.latin)];
     return o && o.bilde ? o.bilde : null;
   }
+  function infoOf(p) {
+    if (p.info) return p.info;
+    var o = ORIG_BY_ID[p.id];
+    if (o && o.info && normalize(o.latin) === normalize(p.latin)) return o.info;
+    o = ORIG_BY_LATIN[normalize(p.latin)];
+    return o && o.info ? o.info : null;
+  }
   function imgHtml(p, cls) {
     var b = imageOf(p);
     if (!b) return '<div class="noimg ' + (cls || '') + '" aria-hidden="true">🌿</div>';
@@ -425,6 +432,7 @@
       '<div class="nameline"><span class="latin">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
       '<div class="nameline"><span class="norsk">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
       '<div class="meta">' + esc(p.gruppe || '') + (sortTxt ? ' · ' + sortTxt : '') + '</div>' + note +
+      (infoOf(p) ? '<a class="btn ghost" style="margin-top:6px;padding-left:0" href="#/plante/' + encodeURIComponent(p.id) + '">ⓘ Les mer om planten →</a>' : '') +
       '</div>';
   }
   function plantByAnswer(cur, text) {
@@ -540,41 +548,190 @@
       '<button class="btn' + (missed.length ? '' : ' primary') + '" data-act="home">Til start</button></div>';
   }
 
-  function renderList() {
-    var list = plants().slice();
-    var groups = allGroups();
-    var html = '<div class="topbar"><a class="btn ghost" href="#/">← Tilbake</a><h1 style="flex:1;margin:0;font-size:1.3rem">Plantelisten</h1></div>' +
-      '<p class="small muted">Trykk på en plante for å rette navn, sorter eller gruppe. Endringer lagres bare på denne telefonen.</p>' +
-      '<div class="sticky"><div class="row"><input type="search" id="search" placeholder="Søk latin eller norsk …">' +
-      '<a class="btn primary" href="#/liste/ny" style="flex:0 0 auto;width:auto">＋ Ny</a></div></div>';
-    groups.concat(list.some(function (p) { return !p.gruppe; }) ? [''] : []).forEach(function (g) {
+  // ---------- Plantelisten med søk og filter ----------
+  var MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+  var MONTHS_SHORT = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
+  var listFilter = { q: '', type: [], farge: [], lys: [], mnd: 0, maksHoyde: 0, herdighet: 0, open: false };
+
+  function filterActive() {
+    var f = listFilter;
+    return f.type.length || f.farge.length || f.lys.length || f.mnd || f.maksHoyde || f.herdighet;
+  }
+  function distinctInfo(key) {
+    var seen = {};
+    plants().forEach(function (p) {
+      var i = infoOf(p); if (!i || i[key] == null) return;
+      [].concat(i[key]).forEach(function (v) { if (v) seen[v] = true; });
+    });
+    return Object.keys(seen).sort(function (a, b) { return a.localeCompare(b, 'nb'); });
+  }
+  function matchesFilter(p) {
+    var f = listFilter;
+    if (f.q) {
+      var key = normalize(p.latin + ' ' + p.norsk + ' ' + (p.sorter || []).join(' '));
+      if (key.indexOf(normalize(f.q)) < 0) return false;
+    }
+    if (!filterActive()) return true;
+    var i = infoOf(p);
+    if (!i) return false;
+    function anyOf(sel, vals) { vals = [].concat(vals || []); return !sel.length || sel.some(function (s) { return vals.indexOf(s) >= 0; }); }
+    if (!anyOf(f.type, i.plantetype)) return false;
+    if (!anyOf(f.farge, i.blomsterfarge)) return false;
+    if (!anyOf(f.lys, i.lys)) return false;
+    if (f.mnd) {
+      var m = i.blomstring_mnd;
+      if (!m || m.length < 2 || f.mnd < m[0] || f.mnd > m[1]) return false;
+    }
+    if (f.maksHoyde) {
+      var h = i.hoyde_cm;
+      if (!h || h[0] > f.maksHoyde) return false;
+    }
+    if (f.herdighet && !(i.herdighet_maks >= f.herdighet)) return false;
+    return true;
+  }
+  function chipRow(key, values) {
+    return '<div class="chips">' + values.map(function (v) {
+      return '<button class="chip' + (listFilter[key].indexOf(v) >= 0 ? ' on' : '') + '" data-act="lf" data-k="' + key + '" data-v="' + esc(v) + '">' + esc(v) + '</button>';
+    }).join('') + '</div>';
+  }
+  function filterPanel() {
+    var f = listFilter;
+    var withInfo = plants().filter(function (p) { return infoOf(p); }).length;
+    if (!withInfo) return '';
+    var html = '<button class="btn" data-act="lfToggle" style="margin-top:8px">🔎 Filter' + (filterActive() ? ' (på)' : '') + ' ' + (f.open ? '▲' : '▼') + '</button>';
+    if (!f.open) return html;
+    html += '<div class="card filter" style="margin-top:8px">' +
+      '<p class="small muted">Filter virker på planter som har planteinfo (' + withInfo + ' så langt).</p>' +
+      '<div class="flabel">Type</div>' + chipRow('type', distinctInfo('plantetype')) +
+      '<div class="flabel">Blomsterfarge</div>' + chipRow('farge', distinctInfo('blomsterfarge')) +
+      '<div class="flabel">Lys</div>' + chipRow('lys', ['sol', 'halvskygge', 'skygge']) +
+      '<div class="setting"><span>Blomstrer i</span><select data-lf="mnd"><option value="0">alle måneder</option>' +
+      MONTHS.map(function (m, i) { return '<option value="' + (i + 1) + '"' + (f.mnd === i + 1 ? ' selected' : '') + '>' + m + '</option>'; }).join('') + '</select></div>' +
+      '<div class="setting"><span>Høyde</span><select data-lf="maksHoyde"><option value="0">alle høyder</option>' +
+      [50, 100, 150, 200, 300].map(function (h) { return '<option value="' + h + '"' + (f.maksHoyde === h ? ' selected' : '') + '>kan holdes under ' + (h >= 100 ? (h / 100).toString().replace('.', ',') + ' m' : h + ' cm') + '</option>'; }).join('') + '</select></div>' +
+      '<div class="setting"><span>Tåler sone</span><select data-lf="herdighet"><option value="0">alle soner</option>' +
+      [3, 4, 5, 6, 7, 8].map(function (h) { return '<option value="' + h + '"' + (f.herdighet === h ? ' selected' : '') + '>minst H' + h + '</option>'; }).join('') + '</select></div>' +
+      (filterActive() ? '<button class="btn ghost" data-act="lfClear">Nullstill filter</button>' : '') +
+      '</div>';
+    return html;
+  }
+  function listItemsHtml() {
+    var list = plants().filter(matchesFilter);
+    var html = '<p class="small muted" style="margin:10px 2px 0">Viser ' + list.length + ' av ' + plants().length + ' planter</p>';
+    allGroups().concat(list.some(function (p) { return !p.gruppe; }) ? [''] : []).forEach(function (g) {
       var items = list.filter(function (p) { return (p.gruppe || '') === g; })
         .sort(function (a, b) { return a.latin.localeCompare(b.latin, 'nb'); });
       if (!items.length) return;
-      html += '<h2 data-grp>' + esc(g || 'Uten gruppe') + ' <span class="muted small">(' + items.length + ')</span></h2><div class="card" style="padding:4px 12px"><ul class="plist">' +
+      html += '<h2>' + esc(g || 'Uten gruppe') + ' <span class="muted small">(' + items.length + ')</span></h2><div class="card" style="padding:4px 12px"><ul class="plist">' +
         items.map(function (p) {
           var b = '';
           if (p.aktiv === false) b = '<span class="badge av">ikke med</span>';
           else if (p.status === 'sjekk') b = '<span class="badge sjekk">usikker</span>';
           else if (box(p.id) >= LEARNED_BOX) b = '<span class="badge lv">lært</span>';
-          var key = normalize(p.latin + ' ' + p.norsk + ' ' + (p.sorter || []).join(' '));
-          return '<li data-key="' + esc(key) + '"><a href="#/liste/' + encodeURIComponent(p.id) + '"><div class="names">' +
-            '<div class="latin">' + esc(p.latin) + '</div><div><b>' + esc(p.norsk) + '</b></div></div>' + b + '</a></li>';
+          var i = infoOf(p);
+          var extra = i && i.hoyde_cm ? '<div class="small muted">' + esc(infoSummary(i)) + '</div>' : '';
+          return '<li><a href="#/plante/' + encodeURIComponent(p.id) + '">' + imgHtml(p, 'mini') + '<div class="names">' +
+            '<div class="latin">' + esc(p.latin) + '</div><div><b>' + esc(p.norsk) + '</b>' + (i ? ' <span class="infodot" title="Har planteinfo">ⓘ</span>' : '') + '</div>' + extra + '</div>' + b + '</a></li>';
         }).join('') + '</ul></div>';
     });
-    app.innerHTML = html;
+    return html;
+  }
+  function infoSummary(i) {
+    var parts = [];
+    if (i.hoyde_cm) parts.push(rangeCm(i.hoyde_cm) + ' høy');
+    if (i.blomsterfarge && i.blomsterfarge.length) parts.push(i.blomsterfarge.join('/'));
+    if (i.blomstring_mnd) parts.push(monthRange(i.blomstring_mnd, true));
+    return parts.join(' · ');
+  }
+  function renderList() {
+    app.innerHTML = '<div class="topbar"><a class="btn ghost" href="#/">← Tilbake</a><h1 style="flex:1;margin:0;font-size:1.3rem">Plantelisten</h1></div>' +
+      '<p class="small muted">Trykk på en plante for å se planteinfo. Der kan du også rette navn.</p>' +
+      '<div class="sticky"><div class="row"><input type="search" id="search" placeholder="Søk latin eller norsk …" value="' + esc(listFilter.q) + '">' +
+      '<a class="btn primary" href="#/liste/ny" style="flex:0 0 auto;width:auto">＋ Ny</a></div></div>' +
+      '<div id="filterWrap">' + filterPanel() + '</div><div id="listWrap">' + listItemsHtml() + '</div>';
     var search = document.getElementById('search');
     search.addEventListener('input', function () {
-      var q = normalize(search.value);
-      app.querySelectorAll('.plist li').forEach(function (li) {
-        li.hidden = !!q && li.getAttribute('data-key').indexOf(q) < 0;
-      });
-      app.querySelectorAll('h2[data-grp]').forEach(function (h) {
-        var card = h.nextElementSibling;
-        var any = card.querySelectorAll('li:not([hidden])').length > 0;
-        h.hidden = !any; card.hidden = !any;
-      });
+      listFilter.q = search.value;
+      document.getElementById('listWrap').innerHTML = listItemsHtml();
     });
+  }
+  function refreshList() {
+    document.getElementById('filterWrap').innerHTML = filterPanel();
+    document.getElementById('listWrap').innerHTML = listItemsHtml();
+  }
+
+  // ---------- Planteside ----------
+  function rangeCm(r) {
+    function f(cm) { return cm >= 100 ? (Math.round(cm / 10) / 10).toString().replace('.', ',') + ' m' : cm + ' cm'; }
+    if (!r || r.length < 2) return '';
+    if (r[0] === r[1]) return f(r[0]);
+    if (r[0] >= 100 && r[1] >= 100) return f(r[0]).replace(' m', '') + '–' + f(r[1]);
+    if (r[0] < 100 && r[1] < 100) return r[0] + '–' + r[1] + ' cm';
+    return f(r[0]) + ' – ' + f(r[1]);
+  }
+  function monthRange(m, short) {
+    var n = short ? MONTHS_SHORT : MONTHS;
+    if (!m || m.length < 2) return '';
+    return m[0] === m[1] ? n[m[0] - 1] : n[m[0] - 1] + '–' + n[m[1] - 1];
+  }
+  function cap(s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function renderPlant(id) {
+    var p = findPlant(id);
+    if (!p) { go('#/liste'); return; }
+    var i = infoOf(p), b = imageOf(p);
+    var html = '<div class="topbar"><button class="btn ghost" data-act="back">← Tilbake</button><span style="flex:1"></span>' +
+      '<a class="btn ghost" href="#/liste/' + encodeURIComponent(p.id) + '">✏️ Rediger</a></div>' +
+      '<div class="card facts">' + (b ? imgHtml(p, 'big') + '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>' : '') +
+      '<div class="nameline"><span class="latin" style="font-size:1.2rem">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
+      '<div class="nameline"><span class="norsk" style="font-size:1.3rem">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
+      '<div class="meta">' + esc(p.gruppe || '') + '</div></div>';
+
+    if (!i) {
+      html += '<div class="card small muted">Det er ikke lagt inn planteinfo for denne planten ennå.</div>';
+    } else {
+      var readAll = [i.beskrivelse].concat(i.kjennetegn && i.kjennetegn.length ? ['Slik kjenner du den igjen: ' + i.kjennetegn.join('. ')] : []).join(' ');
+      html += '<div class="card"><div class="row" style="align-items:center"><h2 style="margin:0">Om planten</h2>' +
+        (canSpeak ? '<button class="btn" data-act="say" data-text="' + esc(readAll) + '" style="flex:0 0 auto;width:auto;min-height:44px">🔊 Les opp</button>' : '') + '</div>' +
+        (i.beskrivelse ? '<p style="margin-top:10px">' + esc(i.beskrivelse) + '</p>' : '') +
+        (i.kjennetegn && i.kjennetegn.length ? '<div class="flabel">Slik kjenner du den igjen</div><ul class="bullets">' + i.kjennetegn.map(function (k) { return '<li>' + esc(k) + '</li>'; }).join('') + '</ul>' : '') +
+        (i.forveksling ? '<div class="flabel">Kan forveksles med</div><p>' + esc(i.forveksling) + '</p>' : '') +
+        '</div>';
+      var rows = [
+        ['Navn hos Artsdatabanken', normalize(i.navn_artsdatabanken) !== normalize(p.norsk) ? i.navn_artsdatabanken : ''],
+        ['Type', [i.plantetype, i.lovfelling].filter(Boolean).join(', ')],
+        ['Høyde', rangeCm(i.hoyde_cm)],
+        ['Bredde', rangeCm(i.bredde_cm)],
+        ['Vekst', i.veksthastighet],
+        ['Blomster', [(i.blomsterfarge || []).join(', '), monthRange(i.blomstring_mnd)].filter(Boolean).join(' · ')],
+        ['Blader', i.bladverk],
+        ['Lys', (i.lys || []).join(', ')],
+        ['Jord', i.jord],
+        ['Herdighet', i.herdighet_maks ? 'H1–H' + i.herdighet_maks : ''],
+        ['Planteavstand', i.planteavstand_cm ? rangeCm(i.planteavstand_cm) + (i.planteavstand_merknad ? ' (' + i.planteavstand_merknad + ')' : '') : ''],
+        ['Beskjæring', i.beskjaering],
+        ['Brukes til', (i.bruksomrade || []).join(', ')],
+        ['Egenskaper', (i.egenskaper || []).join(', ')],
+        ['Høstfarge', i.hostfarge],
+        ['Om vinteren', i.vinterpynt],
+        ['Giftig', i.giftig],
+        ['Spiselig', i.spiselig],
+        ['Opprinnelse', i.opprinnelse],
+        ['Fremmedart', i.fremmedart ? [i.fremmedart.kategori, i.fremmedart.merknad].filter(Boolean).join(' – ') : '']
+      ].filter(function (r) { return r[1]; });
+      html += '<div class="card"><h2 style="margin-top:0">Fakta</h2><dl class="facttable">' +
+        rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(cap(r[1])) + '</dd>'; }).join('') + '</dl></div>';
+      if (p.sorter && p.sorter.length) {
+        html += '<div class="card"><h2 style="margin-top:0">Sorter i lista</h2><p>' + p.sorter.map(esc).join(', ') + '</p></div>';
+      }
+      html += '<div class="card small"><span class="badge ' + (i.status === 'kontrollert' ? 'lv' : 'sjekk') + '">' +
+        (i.status === 'kontrollert' ? '✔ Kontrollert mot kilder' : 'Utkast – ikke kontrollert') + '</span>' +
+        (i.kontrollert ? ' <span class="muted">' + esc(i.kontrollert) + '</span>' : '') +
+        '<p class="muted" style="margin-top:8px">Verdiene gjelder arten. Enkelte sorter kan bli lavere eller høyere.</p>' +
+        (i.kilder && i.kilder.length ? '<div class="flabel">Kilder</div><ol class="sources">' + i.kilder.map(function (k) {
+          return '<li><a href="' + esc(k.url) + '" target="_blank" rel="noopener">' + esc(k.tittel || k.url) + '</a></li>';
+        }).join('') + '</ol>' : '') + '</div>';
+    }
+    app.innerHTML = html;
   }
 
   function renderEdit(id) {
@@ -697,6 +854,14 @@
     var st = state.settings, cur = session && session.queue[0];
     switch (act) {
       case 'say': e.stopPropagation(); speak(el.getAttribute('data-text')); break;
+      case 'back': if (history.length > 1) history.back(); else go('#/liste'); break;
+      case 'lfToggle': listFilter.open = !listFilter.open; refreshList(); break;
+      case 'lfClear': listFilter.type = []; listFilter.farge = []; listFilter.lys = []; listFilter.mnd = 0; listFilter.maksHoyde = 0; listFilter.herdighet = 0; refreshList(); break;
+      case 'lf': {
+        var arr = listFilter[el.getAttribute('data-k')], v = el.getAttribute('data-v'), ix = arr.indexOf(v);
+        if (ix >= 0) arr.splice(ix, 1); else arr.push(v);
+        refreshList(); break;
+      }
       case 'mode': st.mode = el.getAttribute('data-mode'); save(); render(); break;
       case 'startTest': startSession(st.mode || 'mc'); break;
       case 'dir': st.dir = el.getAttribute('data-v'); save(); render(); break;
@@ -765,6 +930,8 @@
   });
 
   app.addEventListener('change', function (e) {
+    var lf = e.target.getAttribute('data-lf');
+    if (lf) { listFilter[lf] = +e.target.value; refreshList(); return; }
     var key = e.target.getAttribute('data-set');
     if (!key) return;
     var st = state.settings;
@@ -851,6 +1018,7 @@
       case 'stat': renderStats(); break;
       case 'data': renderData(); break;
       case 'bilder': renderCredits(); break;
+      case 'plante': renderPlant(decodeURIComponent(parts[1] || '')); break;
       default: renderHome();
     }
   }
