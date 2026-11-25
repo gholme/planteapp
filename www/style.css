@@ -185,7 +185,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .optbtn:disabled { cursor: default; }
 .optbtn .thumb, .optbtn .noimg { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: var(--accent-soft); }
 .noimg { display: flex; align-items: center; justify-content: center; font-size: 2.4rem; background: var(--accent-soft); }
-.optbtn .lbl { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px 8px; min-height: 52px; font-weight: 600; line-height: 1.25; word-break: break-word; }
+.optbtn .lbl { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 8px; min-height: 52px; font-weight: 600; line-height: 1.25; word-break: break-word; }
 .opt.right .optbtn { border-color: var(--good); }
 .opt.right .lbl { background: var(--good-soft); color: var(--good); }
 .opt.wrong .optbtn { border-color: var(--bad); }
@@ -208,6 +208,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .sources a { color: var(--accent); }
 .infodot { color: var(--accent); font-weight: 700; }
 .plist .names .small { white-space: normal; }
+
+/* Min sone */
+.sonecard { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; text-decoration: none; color: var(--text); }
+.zonegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.zonebtn {
+  min-height: 52px; border-radius: 12px; border: 3px solid transparent;
+  font: inherit; font-weight: 800; font-size: 1.1rem; color: #14210f; cursor: pointer;
+}
+.zonebtn.on { border-color: var(--text); box-shadow: 0 0 0 3px var(--bg) inset; transform: scale(1.04); }
+.zonebtn.z1 { background: #f4a259; } .zonebtn.z2 { background: #f6c36b; } .zonebtn.z3 { background: #f2e07a; }
+.zonebtn.z4 { background: #c9e27f; } .zonebtn.z5 { background: #93d18a; } .zonebtn.z6 { background: #7cc6b5; }
+.zonebtn.z7 { background: #8fb7e6; } .zonebtn.z8 { background: #b7a6e8; }
+.zonebadge { margin-top: 10px; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: .92rem; }
+.zonebadge.ok { background: var(--good-soft); color: var(--good); }
+.zonebadge.no { background: var(--warn-soft); color: var(--warn); }
+a.optbtn { text-decoration: none; }
 
 .flash { min-height: 230px; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
 .flash .answer { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }

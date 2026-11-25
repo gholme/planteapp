@@ -140,7 +140,7 @@
     return {
       plants: null, // null = bruk originallisten
       progress: {},
-      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true, autoSpeak: true },
+      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true, autoSpeak: true, sone: 0 },
       streak: { last: null, count: 0 }
     };
   }
@@ -394,6 +394,10 @@
 
       '<button class="btn primary start" data-act="startTest">▶ Start test' +
       '<small>' + esc(MODE_NAMES[st.mode] || 'Flervalg') + ' · ' + esc(DIR_NAMES[st.dir]) + ' · ' + st.size + ' spørsmål</small></button>' +
+
+      '<a class="card sonecard" href="#/sone">' + (st.sone
+        ? '<span>📍 Min sone: <b>H' + st.sone + '</b></span><span class="muted small">Se planter som passer →</span>'
+        : '<span>📍 Velg din herdighetssone</span><span class="muted small">Se hvilke planter som tåler klimaet der du bor →</span>') + '</a>' +
 
       '<div class="links">' +
       '<a class="btn ghost" href="#/liste">📋 Plantelisten</a>' +
@@ -684,7 +688,7 @@
       '<div class="card facts">' + (b ? imgHtml(p, 'big') + '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>' : '') +
       '<div class="nameline"><span class="latin" style="font-size:1.2rem">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
       '<div class="nameline"><span class="norsk" style="font-size:1.3rem">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
-      '<div class="meta">' + esc(p.gruppe || '') + '</div></div>';
+      '<div class="meta">' + esc(p.gruppe || '') + '</div>' + zoneBadge(p) + '</div>';
 
     if (!i) {
       html += '<div class="card small muted">Det er ikke lagt inn planteinfo for denne planten ennå.</div>';
@@ -814,6 +818,63 @@
       '<p class="small muted" style="margin-top:16px">' + plants().length + ' planter i listen' + (state.plants ? ' (endret)' : ' (original)') + '.</p>';
   }
 
+  // ---------- Min sone ----------
+  var SONE_URL = 'https://klimasonekart.no/';
+  function zoneFit(p, sone) {
+    var i = infoOf(p);
+    if (!sone || !i || !i.herdighet_maks) return null;
+    return i.herdighet_maks >= sone;
+  }
+  function zoneBadge(p) {
+    var sone = state.settings.sone, fit = zoneFit(p, sone);
+    if (fit === null) return '';
+    return fit
+      ? '<div class="zonebadge ok">✔ Passer i din sone (H' + sone + ')</div>'
+      : '<div class="zonebadge no">⚠ Kan være for lite herdig for din sone (H' + sone + ')</div>';
+  }
+  function plantTiles(list) {
+    return '<div class="options tiles">' + list.map(function (p) {
+      var i = infoOf(p);
+      return '<div class="opt"><a class="optbtn" href="#/plante/' + encodeURIComponent(p.id) + '">' + imgHtml(p, 'thumb') +
+        '<span class="lbl"><span>' + esc(p.norsk) + '</span><small class="muted">H1–H' + i.herdighet_maks + '</small></span></a>' +
+        sayBtn(p.norsk, 'corner') + '</div>';
+    }).join('') + '</div>';
+  }
+  function renderZone() {
+    var sone = state.settings.sone;
+    var all = plants().filter(usable);
+    var withH = all.filter(function (p) { var i = infoOf(p); return i && i.herdighet_maks; });
+    var html = '<div class="topbar"><a class="btn ghost" href="#/">← Tilbake</a><h1 style="flex:1;margin:0;font-size:1.3rem">Min sone</h1></div>' +
+      '<div class="card stack">' +
+      '<p>Norge er delt inn i herdighetssoner fra <b>H1</b> (mildest, ytterst ved kysten) til <b>H8</b> (kaldest). ' +
+      'En plante merket <b>H1–H5</b> tåler sone 1 til 5.</p>' +
+      '<p><b>1.</b> Finn stedet ditt på kartet til Hageselskapet:</p>' +
+      '<a class="btn" href="' + SONE_URL + '" target="_blank" rel="noopener">🗺️ Åpne klimasonekart.no ↗</a>' +
+      '<p><b>2.</b> Trykk på sonen du fant:</p>' +
+      '<div class="zonegrid">' + [1, 2, 3, 4, 5, 6, 7, 8].map(function (h) {
+        return '<button class="zonebtn z' + h + (sone === h ? ' on' : '') + '" data-act="setZone" data-z="' + h + '" aria-pressed="' + (sone === h) + '">H' + h + '</button>';
+      }).join('') + '</div>' +
+      '<p class="small muted">Bor du i fjellsonen (lys grå på kartet): velg H8, men vær forsiktig – få hageplanter er prøvd der. ' +
+      'Kartet er laget av Meteorologisk institutt for Det norske hageselskap.</p>' +
+      (sone ? '<button class="btn ghost" data-act="setZone" data-z="0">Fjern valgt sone</button>' : '') +
+      '</div>';
+
+    if (sone) {
+      var fits = withH.filter(function (p) { return zoneFit(p, sone); })
+        .sort(function (a, b) { return a.norsk.localeCompare(b.norsk, 'nb'); });
+      var tooTender = withH.filter(function (p) { return zoneFit(p, sone) === false; })
+        .sort(function (a, b) { return a.norsk.localeCompare(b.norsk, 'nb'); });
+      html += '<h2>✔ Passer i sone H' + sone + ' (' + fits.length + ')</h2>' +
+        (fits.length ? plantTiles(fits) : '<p class="muted">Ingen av plantene med kjent herdighet tåler denne sonen.</p>');
+      if (tooTender.length) {
+        html += '<h2>⚠ Kan være for lite herdig (' + tooTender.length + ')</h2>' + plantTiles(tooTender);
+      }
+      html += '<p class="small muted" style="margin-top:14px">Herdighet er kjent for ' + withH.length + ' av ' + all.length +
+        ' planter så langt. Verdiene gjelder arten – enkelte sorter tåler mer eller mindre. Lokale forhold (le, snø, jord) betyr også mye.</p>';
+    }
+    app.innerHTML = html;
+  }
+
   function renderCredits() {
     var list = plants().filter(function (p) { return imageOf(p); })
       .sort(function (a, b) { return a.latin.localeCompare(b.latin, 'nb'); });
@@ -855,6 +916,7 @@
     switch (act) {
       case 'say': e.stopPropagation(); speak(el.getAttribute('data-text')); break;
       case 'back': if (history.length > 1) history.back(); else go('#/liste'); break;
+      case 'setZone': state.settings.sone = +el.getAttribute('data-z'); save(); render(); break;
       case 'lfToggle': listFilter.open = !listFilter.open; refreshList(); break;
       case 'lfClear': listFilter.type = []; listFilter.farge = []; listFilter.lys = []; listFilter.mnd = 0; listFilter.maksHoyde = 0; listFilter.herdighet = 0; refreshList(); break;
       case 'lf': {
@@ -1019,6 +1081,7 @@
       case 'data': renderData(); break;
       case 'bilder': renderCredits(); break;
       case 'plante': renderPlant(decodeURIComponent(parts[1] || '')); break;
+      case 'sone': renderZone(); break;
       default: renderHome();
     }
   }

@@ -56,6 +56,8 @@ på siden «Om bildene» i appen). Bytte et bilde:
 - Smart repetisjon (Leitner-bokser: 0, 1, 2, 4, 7, 14, 30 dager). Feil svar kommer igjen i samme økt.
 - Når flere arter har samme norske navn (f.eks. «Prydkirsebær»), godtas alle riktige svar.
 - Statistikk per gruppe, «vanskeligst»-liste og dager-på-rad.
+- 📍 Min sone: velg herdighetssone H1–H8 (med lenke til klimasonekart.no, Hageselskapet) og se hvilke planter som
+  tåler sonen. Kartet vises ikke i appen – det krever tillatelse fra Hageselskapet.
 - Redigering av planter, eksport/import av liste og fremgang.
 
 ## Publisering
