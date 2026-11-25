@@ -66,6 +66,13 @@ Appen publiseres med GitHub Pages og installeres fra Chrome på Android («Insta
 Se [DEPLOY.md](DEPLOY.md). Manifest og service worker (`www/manifest.webmanifest`, `www/sw.js`)
 gjør den installerbar og offline-klar. Ikonene lages med `tools/lag-ikoner.ps1`.
 
+### Oppdatere publiseringsstegene
+
+`.github/workflows/pages.yml` bruker GitHubs egne actions, låst til bestemte commits (SHA) og bygget for Node 24.
+Appen selv bruker ikke Node.js. Når GitHub varsler om utdaterte actions: finn nyeste release på
+github.com/actions/<navn>/releases, bytt SHA og versjonskommentar, og pass på at `deploy-pages` og
+`upload-pages-artifact` oppgraderes sammen.
+
 ## Alternativ: APK
 
 Ikke gjort – bare aktuelt hvis man vil unngå nettadresse. Plan:

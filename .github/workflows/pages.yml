@@ -1,4 +1,14 @@
 # Publiserer mappen www/ til GitHub Pages hver gang det pushes til main.
+#
+# Sikkerhet:
+#  - Alle actions er låst til en bestemt commit (SHA), ikke en flyttbar tag.
+#    Kommentaren bak viser hvilken versjon SHA-en tilsvarer.
+#  - Alle actions kjører på Node 24 (Node 20 er utgått på GitHub Actions).
+#  - Appen selv bruker ikke Node.js – den er ren HTML/CSS/JavaScript. Node brukes bare
+#    av GitHub sine egne publiseringssteg.
+#  - Minste nødvendige rettigheter per jobb.
+#
+# Oppdatere versjoner senere: se README («Oppdatere publiseringsstegene»).
 name: Publiser til GitHub Pages
 
 on:
@@ -6,29 +16,36 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: www
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          name: github-pages
-          path: www
       - id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
