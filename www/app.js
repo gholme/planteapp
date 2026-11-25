@@ -67,6 +67,140 @@
     return '<img class="' + (cls || '') + '" src="' + esc(b.fil) + '" alt="' + esc(p.norsk) + '" loading="lazy" decoding="async">';
   }
 
+  // ---------- Egne bilder (lagres i IndexedDB på telefonen) ----------
+  var canPhoto = 'indexedDB' in window;
+  var photoDb = null;
+  var photos = {}; // plante-id -> [{key, plant, blob, created, url}], nyeste først
+  var plantPicIdx = {}; // valgt bilde på plantesiden
+  function idbReq(r) {
+    return new Promise(function (res, rej) {
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function photoStore(mode) { return photoDb.transaction('photos', mode).objectStore('photos'); }
+  function openPhotoDb() {
+    if (!canPhoto) return Promise.reject(new Error('ingen IndexedDB'));
+    var r = indexedDB.open('planteapp-bilder', 1);
+    r.onupgradeneeded = function () {
+      var s = r.result.createObjectStore('photos', { keyPath: 'key', autoIncrement: true });
+      s.createIndex('plant', 'plant');
+    };
+    return idbReq(r).then(function (d) { photoDb = d; return d; });
+  }
+  function cachePhoto(rec) {
+    if (!rec.url) rec.url = URL.createObjectURL(rec.blob);
+    var l = photos[rec.plant] || (photos[rec.plant] = []);
+    l.push(rec);
+    l.sort(function (a, b) { return b.created - a.created; });
+  }
+  function loadPhotos() {
+    return openPhotoDb()
+      .then(function () { return idbReq(photoStore('readonly').getAll()); })
+      .then(function (list) { list.forEach(cachePhoto); return list.length; })
+      .catch(function () { return 0; });
+  }
+  function ownPhotos(p) { return (p && p.id && photos[p.id]) || []; }
+  function hasOwn(p) { return ownPhotos(p).length > 0; }
+  // Bildet som vises for en plante: eget (nyeste) eller originalen fra Wikipedia.
+  function shownPic(p, preferOwn) {
+    var own = ownPhotos(p), b = imageOf(p);
+    if (own.length && (preferOwn || !b)) return { own: own[0] };
+    return b ? { orig: b } : null;
+  }
+  function allPics(p) {
+    var b = imageOf(p);
+    return ownPhotos(p).map(function (r) { return { own: r }; }).concat(b ? [{ orig: b }] : []);
+  }
+  function picImg(pic, alt, cls) {
+    if (!pic) return '<div class="noimg ' + (cls || '') + '" aria-hidden="true">🌿</div>';
+    var src = pic.own ? pic.own.url : pic.orig.fil;
+    return '<img class="' + (cls || '') + '" src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy" decoding="async">';
+  }
+  function dateTxt(ms) {
+    var d = new Date(ms);
+    return d.getDate() + '. ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+  function creditHtml(pic) {
+    if (!pic) return '';
+    if (pic.own) return '<div class="credit">📷 Eget bilde · ' + esc(dateTxt(pic.own.created)) + '</div>';
+    var b = pic.orig;
+    return '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>';
+  }
+  function addBtn(p, cls) {
+    if (!canPhoto || !p || !p.id) return '';
+    return '<button type="button" class="' + (cls || 'picbtn') + ' add" data-act="addPhoto" data-id="' + esc(p.id) + '" aria-label="Legg til eget bilde av ' + esc(p.norsk) + '">＋</button>';
+  }
+  function delBtn(pic, cls) {
+    if (!pic || !pic.own) return '';
+    return '<button type="button" class="' + (cls || 'picbtn') + ' del" data-act="delPhoto" data-id="' + esc(pic.own.plant) + '" data-key="' + pic.own.key + '" aria-label="Slett bildet">🗑</button>';
+  }
+  // Stort bilde med ＋ og 🗑 oppå.
+  function picBlock(p, pic) {
+    if (!pic && !canPhoto) return '';
+    return '<div class="pic">' + picImg(pic, p.norsk, 'big') + addBtn(p) + delBtn(pic) + '</div>' + creditHtml(pic);
+  }
+
+  // Krymper bildet til maks 1024 px (JPEG), så det tar lite plass.
+  function shrinkImage(file) {
+    return new Promise(function (res, rej) {
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var max = 1024, w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement('canvas');
+        c.width = Math.round(w * k); c.height = Math.round(h * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        c.toBlob(function (b) { if (b) res(b); else rej(new Error('toBlob')); }, 'image/jpeg', 0.82);
+      };
+      im.onerror = function () { URL.revokeObjectURL(u); rej(new Error('kunne ikke lese bildet')); };
+      im.src = u;
+    });
+  }
+  function savePhoto(plantId, blob) {
+    var rec = { plant: plantId, blob: blob, created: Date.now() };
+    return idbReq(photoStore('readwrite').add(rec)).then(function (key) { rec.key = key; cachePhoto(rec); });
+  }
+  var fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.multiple = true; fileInput.hidden = true;
+  document.body.appendChild(fileInput);
+  var pendingPlant = null;
+  function pickPhoto(id) {
+    if (!photoDb) { toast('Bilder kan ikke lagres på denne enheten'); return; }
+    pendingPlant = id;
+    fileInput.value = '';
+    fileInput.click(); // Android viser valget mellom kamera og galleri
+  }
+  fileInput.addEventListener('change', function () {
+    var files = [].slice.call(fileInput.files || []), id = pendingPlant;
+    fileInput.value = ''; pendingPlant = null;
+    if (!files.length || !id) return;
+    toast('Lagrer bildet …');
+    files.reduce(function (pr, f) {
+      return pr.then(function () { return shrinkImage(f).then(function (b) { return savePhoto(id, b); }); });
+    }, Promise.resolve()).then(function () {
+      plantPicIdx[id] = 0;
+      toast(files.length > 1 ? '📷 ' + files.length + ' bilder er lagt til' : '📷 Bildet er lagt til');
+      refresh();
+    }, function () { toast('Klarte ikke å lagre bildet'); refresh(); });
+  });
+  function removePhoto(id, key) {
+    var l = photos[id] || [], rec = null;
+    for (var i = 0; i < l.length; i++) if (l[i].key === key) { rec = l.splice(i, 1)[0]; break; }
+    if (!rec) return;
+    if (!l.length) delete photos[id];
+    idbReq(photoStore('readwrite').delete(key)).catch(function () {});
+    refresh();
+    toastUndo('Bildet er slettet', function () {
+      idbReq(photoStore('readwrite').put({ key: rec.key, plant: rec.plant, blob: rec.blob, created: rec.created }))
+        .then(function () { cachePhoto(rec); refresh(); }, function () { toast('Klarte ikke å hente bildet tilbake'); });
+    });
+  }
+  function removeAllPhotos(id) {
+    ownPhotos({ id: id }).forEach(function (r) { idbReq(photoStore('readwrite').delete(r.key)).catch(function () {}); });
+    delete photos[id];
+  }
+
   // ---------- Opplesning ----------
   var voice = null;
   var canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
@@ -81,11 +215,27 @@
   function speechText(t) {
     return String(t || '')
       .replace(/×/g, ' ')
+      // Vanlige forkortelser
+      .replace(/\bca\.\s?/gi, 'cirka ')
+      .replace(/\bf\.eks\.\s?/gi, 'for eksempel ')
+      .replace(/\bbl\.a\.\s?/gi, 'blant annet ')
+      .replace(/\bevt\.\s?/gi, 'eventuelt ')
+      .replace(/\bosv\./gi, 'og så videre')
+      .replace(/\bpH\b/g, 'p H')
+      // Soner, mål og intervaller
+      .replace(/H(\d)–H(\d)/g, 'sone $1 til $2')
+      .replace(/(\d)\s?cm\b/g, '$1 centimeter')
+      .replace(/(\d)\s?m\b/g, '$1 meter')
+      .replace(/\s[–·]\s/g, ', ')
+      .replace(/–/g, ' til ')
       .replace(/\bf\.\s/g, 'forma ')
       .replace(/\bvar\.\s/g, 'varietet ')
       .replace(/\bsubsp\.\s/g, 'underart ')
       .replace(/['"‘’«»]/g, '')
-      .replace(/[()]/g, ', ');
+      .replace(/\s*[()]\s*/g, ', ')
+      .replace(/(,\s*)+/g, ', ')
+      .replace(/,\s*([.!?]|$)/g, '$1')
+      .trim();
   }
   function speak(t) {
     if (!canSpeak) { toast('Opplesning støttes ikke på denne enheten'); return; }
@@ -140,7 +290,7 @@
     return {
       plants: null, // null = bruk originallisten
       progress: {},
-      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true, autoSpeak: true, sone: 0 },
+      settings: { mode: 'mc', dir: 'mix', groups: [], size: 15, newPer: 8, includeUnsure: true, autoSpeak: true, sone: 0, ownPhotos: true, onlySchool: false },
       streak: { last: null, count: 0 }
     };
   }
@@ -182,12 +332,16 @@
   function usable(p) { return p && p.latin && p.norsk && p.aktiv !== false; }
   function activePool() {
     var g = state.settings.groups;
+    var school = state.settings.onlySchool && schoolCount() > 0;
     return plants().filter(function (p) {
       return usable(p) &&
+        (!school || hasOwn(p)) &&
         (state.settings.includeUnsure || p.status !== 'sjekk') &&
         (!g.length || g.indexOf(p.gruppe) >= 0);
     });
   }
+  // Planter med egne bilder = planter som finnes på skolen.
+  function schoolCount() { return plants().filter(function (p) { return usable(p) && hasOwn(p); }).length; }
   function prog(id) { return state.progress[id]; }
   function box(id) { var p = prog(id); return p ? p.box : -1; }
 
@@ -216,9 +370,30 @@
   var toastTimer;
   function toast(msg) {
     toastEl.textContent = msg;
+    toastEl.onclick = null;
     toastEl.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2200);
+  }
+  // Melding med «Angre»-knapp (vises litt lenger).
+  function toastUndo(msg, undo) {
+    toastEl.innerHTML = esc(msg) + ' <button type="button" class="undo">Angre</button>';
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    function close() { toastEl.hidden = true; toastEl.onclick = null; }
+    toastEl.onclick = function (e) {
+      if (!e.target.closest('.undo')) return;
+      clearTimeout(toastTimer); close(); undo();
+    };
+    toastTimer = setTimeout(close, 6000);
+  }
+  // Tegner siden på nytt uten å hoppe til toppen (brukes når bilder legges til eller slettes).
+  var keepScroll = false;
+  function refresh() {
+    var y = window.scrollY;
+    keepScroll = true;
+    try { render(); } finally { keepScroll = false; }
+    window.scrollTo(0, y);
   }
   function confirmBox(text, okLabel, danger, cancelLabel) {
     return new Promise(function (resolve) {
@@ -351,6 +526,8 @@
     var streak = currentStreak();
     var doneToday = state.streak.last === today;
     var groups = allGroups();
+    var nSchool = schoolCount();
+    var schoolOn = st.onlySchool && nSchool > 0;
 
     var html =
       '<h1>🌿 Planteøving</h1>' +
@@ -384,16 +561,20 @@
         return '<button class="chip' + (st.groups.indexOf(g) >= 0 ? ' on' : '') + '" data-act="group" data-g="' + esc(g) + '">' + esc(g) + '</button>';
       }).join('') +
       '</div>' +
+      (nSchool
+        ? '<div class="chips" style="margin-top:8px"><button class="chip' + (st.onlySchool ? ' on' : '') + '" data-act="school" aria-pressed="' + !!st.onlySchool + '">📷 Bare planter fra skolen (' + nSchool + ')</button></div>'
+        : (canPhoto ? '<p class="small muted" style="margin-top:10px">📷 Tips: trykk ＋ på et plantebilde for å legge til ditt eget bilde.</p>' : '')) +
 
       '<div class="card" style="margin-top:14px">' +
       '<div class="setting"><span>Spørsmål per økt</span>' + select('size', [10, 15, 20, 30], st.size) + '</div>' +
       '<div class="setting"><span>Nye planter per økt</span>' + select('newPer', [3, 5, 8, 12, 20], st.newPer) + '</div>' +
       '<label class="check"><input type="checkbox" data-set="includeUnsure"' + (st.includeUnsure ? ' checked' : '') + '> Ta med planter merket «usikker»</label>' +
       (canSpeak ? '<label class="check"><input type="checkbox" data-set="autoSpeak"' + (st.autoSpeak ? ' checked' : '') + '> 🔊 Les opp spørsmålet automatisk</label>' : '') +
+      (nSchool ? '<label class="check"><input type="checkbox" data-set="ownPhotos"' + (st.ownPhotos ? ' checked' : '') + '> 📷 Vis egne bilder i testen</label>' : '') +
       '</div>' +
 
       '<button class="btn primary start" data-act="startTest">▶ Start test' +
-      '<small>' + esc(MODE_NAMES[st.mode] || 'Flervalg') + ' · ' + esc(DIR_NAMES[st.dir]) + ' · ' + st.size + ' spørsmål</small></button>' +
+      '<small>' + esc(MODE_NAMES[st.mode] || 'Flervalg') + ' · ' + esc(DIR_NAMES[st.dir]) + ' · ' + st.size + ' spørsmål' + (schoolOn ? ' · skoleplanter' : '') + '</small></button>' +
 
       '<a class="card sonecard" href="#/sone">' + (st.sone
         ? '<span>📍 Min sone: <b>H' + st.sone + '</b></span><span class="muted small">Se planter som passer →</span>'
@@ -429,10 +610,8 @@
       sortTxt = 'Sorter: ' + sorter.slice(0, 8).map(esc).join(', ') + (sorter.length > 8 ? ' + ' + (sorter.length - 8) + ' til' : '');
     }
     var note = p.merknad && /^(Nyere|Eldre|Også)/.test(p.merknad) ? '<div class="meta">' + esc(p.merknad) + '</div>' : '';
-    var b = imageOf(p);
-    var credit = b ? '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>' : '';
     return '<div class="card facts">' +
-      (b ? imgHtml(p, 'big') + credit : '') +
+      picBlock(p, shownPic(p, state.settings.ownPhotos)) +
       '<div class="nameline"><span class="latin">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
       '<div class="nameline"><span class="norsk">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
       '<div class="meta">' + esc(p.gruppe || '') + (sortTxt ? ' · ' + sortTxt : '') + '</div>' + note +
@@ -475,10 +654,13 @@
             else if (i === cur.picked) cls = ' wrong';
           }
           var op = plantByAnswer(cur, o) || { norsk: o, latin: o };
+          var pic = shownPic(op, state.settings.ownPhotos);
+          var done = cur.state === 'answered';
+          // ＋ og 🗑 vises først når svaret er gitt, så de ikke kommer i veien for svaret.
           return '<div class="opt' + cls + '"><button class="optbtn" data-act="mc" data-i="' + i + '"' +
-            (cur.state === 'answered' ? ' disabled' : '') + '>' + imgHtml(op, 'thumb') +
+            (done ? ' disabled' : '') + '>' + picImg(pic, op.norsk, 'thumb') +
             '<span class="lbl' + (sd.a === 'latin' ? ' latin' : '') + '">' + esc(o) + '</span></button>' +
-            sayBtn(o, 'corner') + '</div>';
+            '<div class="ovl">' + (done ? addBtn(op) + delBtn(pic) : '') + sayBtn(o, 'corner') + '</div></div>';
         }).join('') + '</div>';
       if (cur.state === 'answered') {
         body += '<div class="feedback ' + (cur.ok ? 'ok' : 'no') + '">' + (cur.ok ? 'Riktig! 🎉' : 'Ikke helt.') + '</div>' +
@@ -521,6 +703,7 @@
       cur.spoken = true;
       speak(cur.p[sd.q]);
     }
+    if (keepScroll) return;
     if (cur.state !== 'ask') {
       var fb = app.querySelector('.feedback') || app.querySelector('.facts');
       if (fb) setTimeout(function () { fb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
@@ -555,7 +738,7 @@
   // ---------- Plantelisten med søk og filter ----------
   var MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
   var MONTHS_SHORT = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
-  var listFilter = { q: '', type: [], farge: [], lys: [], mnd: 0, maksHoyde: 0, herdighet: 0, open: false };
+  var listFilter = { q: '', type: [], farge: [], lys: [], mnd: 0, maksHoyde: 0, herdighet: 0, open: false, skole: false };
 
   function filterActive() {
     var f = listFilter;
@@ -575,6 +758,7 @@
       var key = normalize(p.latin + ' ' + p.norsk + ' ' + (p.sorter || []).join(' '));
       if (key.indexOf(normalize(f.q)) < 0) return false;
     }
+    if (f.skole && !hasOwn(p)) return false;
     if (!filterActive()) return true;
     var i = infoOf(p);
     if (!i) return false;
@@ -634,8 +818,11 @@
           else if (box(p.id) >= LEARNED_BOX) b = '<span class="badge lv">lært</span>';
           var i = infoOf(p);
           var extra = i && i.hoyde_cm ? '<div class="small muted">' + esc(infoSummary(i)) + '</div>' : '';
-          return '<li><a href="#/plante/' + encodeURIComponent(p.id) + '">' + imgHtml(p, 'mini') + '<div class="names">' +
-            '<div class="latin">' + esc(p.latin) + '</div><div><b>' + esc(p.norsk) + '</b>' + (i ? ' <span class="infodot" title="Har planteinfo">ⓘ</span>' : '') + '</div>' + extra + '</div>' + b + '</a></li>';
+          var pic = shownPic(p, true);
+          return '<li class="prow"><a href="#/plante/' + encodeURIComponent(p.id) + '">' + picImg(pic, p.norsk, 'mini') + '<div class="names">' +
+            '<div class="latin">' + esc(p.latin) + '</div><div><b>' + esc(p.norsk) + '</b>' + (i ? ' <span class="infodot" title="Har planteinfo">ⓘ</span>' : '') +
+            (hasOwn(p) ? ' <span title="Finnes på skolen">📷</span>' : '') + '</div>' + extra + '</div>' + b + '</a>' +
+            delBtn(pic, 'rowbtn') + addBtn(p, 'rowbtn') + '</li>';
         }).join('') + '</ul></div>';
     });
     return html;
@@ -652,15 +839,20 @@
       '<p class="small muted">Trykk på en plante for å se planteinfo. Der kan du også rette navn.</p>' +
       '<div class="sticky"><div class="row"><input type="search" id="search" placeholder="Søk latin eller norsk …" value="' + esc(listFilter.q) + '">' +
       '<a class="btn primary" href="#/liste/ny" style="flex:0 0 auto;width:auto">＋ Ny</a></div></div>' +
-      '<div id="filterWrap">' + filterPanel() + '</div><div id="listWrap">' + listItemsHtml() + '</div>';
+      '<div id="filterWrap">' + schoolChip() + filterPanel() + '</div><div id="listWrap">' + listItemsHtml() + '</div>';
     var search = document.getElementById('search');
     search.addEventListener('input', function () {
       listFilter.q = search.value;
       document.getElementById('listWrap').innerHTML = listItemsHtml();
     });
   }
+  function schoolChip() {
+    var n = schoolCount();
+    if (!n && !listFilter.skole) return '';
+    return '<div class="chips" style="margin-top:8px"><button class="chip' + (listFilter.skole ? ' on' : '') + '" data-act="lfSchool" aria-pressed="' + listFilter.skole + '">📷 Finnes på skolen (' + n + ')</button></div>';
+  }
   function refreshList() {
-    document.getElementById('filterWrap').innerHTML = filterPanel();
+    document.getElementById('filterWrap').innerHTML = schoolChip() + filterPanel();
     document.getElementById('listWrap').innerHTML = listItemsHtml();
   }
 
@@ -682,13 +874,20 @@
   function renderPlant(id) {
     var p = findPlant(id);
     if (!p) { go('#/liste'); return; }
-    var i = infoOf(p), b = imageOf(p);
+    var i = infoOf(p);
+    var pics = allPics(p), own = ownPhotos(p);
+    var idx = Math.max(0, Math.min(plantPicIdx[p.id] || 0, pics.length - 1)), pic = pics[idx] || null;
+    var strip = pics.length > 1 ? '<div class="strip">' + pics.map(function (x, n) {
+      return '<button type="button" class="' + (n === idx ? 'on' : '') + '" data-act="pic" data-id="' + esc(p.id) + '" data-i="' + n + '" aria-label="Vis bilde ' + (n + 1) + '">' + picImg(x, '', '') + '</button>';
+    }).join('') + '</div>' : '';
     var html = '<div class="topbar"><button class="btn ghost" data-act="back">← Tilbake</button><span style="flex:1"></span>' +
       '<a class="btn ghost" href="#/liste/' + encodeURIComponent(p.id) + '">✏️ Rediger</a></div>' +
-      '<div class="card facts">' + (b ? imgHtml(p, 'big') + '<div class="credit">Foto: ' + esc(b.fotograf) + (b.lisens ? ' · ' + esc(b.lisens) : '') + '</div>' : '') +
+      '<div class="card facts">' + picBlock(p, pic) + strip +
       '<div class="nameline"><span class="latin" style="font-size:1.2rem">' + esc(p.latin) + '</span>' + sayBtn(p.latin, 'small') + '</div>' +
       '<div class="nameline"><span class="norsk" style="font-size:1.3rem">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
-      '<div class="meta">' + esc(p.gruppe || '') + '</div>' + zoneBadge(p) + '</div>';
+      '<div class="meta">' + esc(p.gruppe || '') + '</div>' +
+      (own.length ? '<div class="zonebadge ok">📷 Finnes på skolen · ' + own.length + (own.length === 1 ? ' eget bilde' : ' egne bilder') + '</div>' : '') +
+      zoneBadge(p) + '</div>';
 
     if (!i) {
       html += '<div class="card small muted">Det er ikke lagt inn planteinfo for denne planten ennå.</div>';
@@ -722,7 +921,12 @@
         ['Opprinnelse', i.opprinnelse],
         ['Fremmedart', i.fremmedart ? [i.fremmedart.kategori, i.fremmedart.merknad].filter(Boolean).join(' – ') : '']
       ].filter(function (r) { return r[1]; });
-      html += '<div class="card"><h2 style="margin-top:0">Fakta</h2><dl class="facttable">' +
+      // Resten av omskrivingen (forkortelser, mål, «–») gjøres i speechText().
+      var factsSpeech = rows.map(function (r) { return r[0] + ': ' + String(r[1]).replace(/\.\s*$/, ''); }).join('. ')
+        .replace(/\b(SE|HI|PH|LO|NK) – /g, '');
+      html += '<div class="card"><div class="row" style="align-items:center"><h2 style="margin:0">Fakta</h2>' +
+        (canSpeak ? '<button class="btn" data-act="say" data-text="' + esc(factsSpeech) + '" style="flex:0 0 auto;width:auto;min-height:44px">🔊 Les opp</button>' : '') +
+        '</div><dl class="facttable" style="margin-top:12px">' +
         rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(cap(r[1])) + '</dd>'; }).join('') + '</dl></div>';
       if (p.sorter && p.sorter.length) {
         html += '<div class="card"><h2 style="margin-top:0">Sorter i lista</h2><p>' + p.sorter.map(esc).join(', ') + '</p></div>';
@@ -806,7 +1010,8 @@
   function renderData() {
     app.innerHTML =
       '<div class="topbar"><a class="btn ghost" href="#/">← Tilbake</a><h1 style="flex:1;margin:0;font-size:1.3rem">Sikkerhetskopi</h1></div>' +
-      '<div class="card stack"><p><b>Eksporter</b><br><span class="small muted">Plantelisten og fremgangen som tekst. Lagre den et sted (f.eks. send den til deg selv på e-post), så kan du hente den inn igjen senere eller på en annen telefon.</span></p>' +
+      '<div class="card stack"><p><b>Eksporter</b><br><span class="small muted">Plantelisten og fremgangen som tekst. Lagre den et sted (f.eks. send den til deg selv på e-post), så kan du hente den inn igjen senere eller på en annen telefon. ' +
+      'Egne bilder er ikke med i kopien ennå. De ligger bare i appen på denne telefonen.</span></p>' +
       '<div class="row"><button class="btn" data-act="copyExport">📋 Kopier</button>' +
       (navigator.share ? '<button class="btn" data-act="shareExport">📤 Del</button>' : '') + '</div></div>' +
       '<div class="card stack"><p><b>Importer</b><br><span class="small muted">Lim inn tekst fra en eksport. Plantelisten (og eventuell fremgang) blir erstattet.</span></p>' +
@@ -834,10 +1039,10 @@
   }
   function plantTiles(list) {
     return '<div class="options tiles">' + list.map(function (p) {
-      var i = infoOf(p);
-      return '<div class="opt"><a class="optbtn" href="#/plante/' + encodeURIComponent(p.id) + '">' + imgHtml(p, 'thumb') +
+      var i = infoOf(p), pic = shownPic(p, true);
+      return '<div class="opt"><a class="optbtn" href="#/plante/' + encodeURIComponent(p.id) + '">' + picImg(pic, p.norsk, 'thumb') +
         '<span class="lbl"><span>' + esc(p.norsk) + '</span><small class="muted">H1–H' + i.herdighet_maks + '</small></span></a>' +
-        sayBtn(p.norsk, 'corner') + '</div>';
+        '<div class="ovl">' + delBtn(pic) + addBtn(p) + sayBtn(p.norsk, 'corner') + '</div></div>';
     }).join('') + '</div>';
   }
   function renderZone() {
@@ -915,6 +1120,11 @@
     var st = state.settings, cur = session && session.queue[0];
     switch (act) {
       case 'say': e.stopPropagation(); speak(el.getAttribute('data-text')); break;
+      case 'addPhoto': e.preventDefault(); e.stopPropagation(); pickPhoto(el.getAttribute('data-id')); break;
+      case 'delPhoto': e.preventDefault(); e.stopPropagation(); removePhoto(el.getAttribute('data-id'), +el.getAttribute('data-key')); break;
+      case 'pic': plantPicIdx[el.getAttribute('data-id')] = +el.getAttribute('data-i'); refresh(); break;
+      case 'school': st.onlySchool = !st.onlySchool; save(); render(); break;
+      case 'lfSchool': listFilter.skole = !listFilter.skole; refreshList(); break;
       case 'back': if (history.length > 1) history.back(); else go('#/liste'); break;
       case 'setZone': state.settings.sone = +el.getAttribute('data-z'); save(); render(); break;
       case 'lfToggle': listFilter.open = !listFilter.open; refreshList(); break;
@@ -966,6 +1176,7 @@
           if (!ok) return;
           state.plants = editable().filter(function (x) { return x.id !== id; });
           delete state.progress[id];
+          removeAllPhotos(id);
           save(); toast('Slettet'); go('#/liste');
         });
         break;
@@ -1072,7 +1283,7 @@
   function render() {
     var h = location.hash || '#/';
     var parts = h.replace(/^#\/?/, '').split('/');
-    window.scrollTo(0, 0);
+    if (!keepScroll) window.scrollTo(0, 0);
     switch (parts[0]) {
       case 'ov': if (session && session.queue.length) renderPlay(); else go('#/'); break;
       case 'ferdig': if (session) renderSummary(); else go('#/'); break;
@@ -1087,6 +1298,8 @@
   }
   window.addEventListener('hashchange', render);
   render();
+  // Egne bilder hentes etterpå, så appen starter like raskt.
+  loadPhotos().then(function (n) { if (n) refresh(); });
 
   // Offline-støtte og varig lagring (når appen kjører fra en nettadresse).
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {

@@ -58,6 +58,11 @@ på siden «Om bildene» i appen). Bytte et bilde:
 - Statistikk per gruppe, «vanskeligst»-liste og dager-på-rad.
 - 📍 Min sone: velg herdighetssone H1–H8 (med lenke til klimasonekart.no, Hageselskapet) og se hvilke planter som
   tåler sonen. Kartet vises ikke i appen – det krever tillatelse fra Hageselskapet.
+- 📷 Egne bilder: trykk ＋ på et plantebilde (eller i plantelisten) for å ta bilde eller velge fra galleriet.
+  🗑 sletter egne bilder (med «Angre»). Originalbildene kan ikke slettes. I testen vises ＋ og 🗑 først etter svaret.
+  Bildene krympes til maks 1024 px og lagres i IndexedDB på telefonen. De er ikke med i sikkerhetskopien ennå.
+- Planter med egne bilder regnes som «Finnes på skolen»: eget filter i plantelisten og «Bare planter fra skolen»
+  på startsiden. «Vis egne bilder i testen» velger egne bilder framfor Wikipedia-bildene.
 - Redigering av planter, eksport/import av liste og fremgang.
 
 ## Publisering
