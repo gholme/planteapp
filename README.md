@@ -20,6 +20,7 @@ og uten byggesteg. Den virker offline og lagrer alt lokalt på enheten (localSto
 | `tools/komprimer-bilder.ps1` | Krymper bildene (480 px, JPEG 78) – kjør etter nye bilder. |
 | `data/planteinfo.json` | Planteinfo (høyde, blomstring, herdighet, kjennetegn …) med kilder per felt. Nøkkel = latinsk navn. |
 | `tools/sjekk-planteinfo.ps1` | Kontrollerer planteinfo: kilde per felt, faste ordlister, ingen forkortelser i tekst som leses opp. |
+| `data/sjekkliste.json` | Spørsmål til skolen om usikre planter (navn, sorter, type, herdighet). Vises som «❓ Spør på skolen». Fjern en linje når den er avklart, og kjør `lag-datafil.ps1`. |
 | `data/nattjobb/` | Oppdrag, agentenes rådata og `RAPPORT.md` fra utfyllingen av planteinfo (navneavvik m.m.). |
 | `tools/lag-infoliste.ps1` | Lager `Kontrolliste_planteinfo.xlsx` (verdier med kildenummer, kilder, usikre felt). |
 | `.github/workflows/pages.yml` | Publiserer `www/` til GitHub Pages ved push til `main`. |
@@ -65,6 +66,9 @@ på siden «Om bildene» i appen). Bytte et bilde:
   Bildene krympes til maks 1024 px og lagres i IndexedDB på telefonen. De er ikke med i sikkerhetskopien ennå.
 - Planter med egne bilder regnes som «Finnes på skolen»: eget filter i plantelisten og «Bare planter fra skolen»
   på startsiden. «Vis egne bilder i testen» velger egne bilder framfor Wikipedia-bildene.
+- ❓ Spør på skolen: planter der kildene er usikre eller ikke stemmer med lista, har en boks med spørsmål på
+  plantesiden og et eget filter i plantelisten. Svarene kan skrives i Merknad, eller i arket «Spør på skolen»
+  i `Kontrolliste_planteinfo.xlsx`.
 - Redigering av planter, eksport/import av liste og fremgang.
 
 ## Publisering

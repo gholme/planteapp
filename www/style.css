@@ -243,6 +243,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .sources li { margin: 4px 0; }
 .sources a { color: var(--accent); }
 .infodot { color: var(--accent); font-weight: 700; }
+.sjekkcard { border-left: 4px solid var(--warn); }
 .plist .names .small { white-space: normal; }
 
 /* Min sone */

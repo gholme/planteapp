@@ -1,0 +1,78 @@
+{
+  "_om": "Spørsmål til skolen om planter der kildene er usikre eller ikke stemmer med lista. Nøkkel = latinsk navn som i planter.json. Fjern en linje når skolen har svart og lista er rettet.",
+
+  "Ribes glandulosum": ["Kjertelrips er navnet på en annen plante. Plantinor kaller denne kryprips. Hvilket navn vil skolen bruke?"],
+  "Cotoneaster × suecicus": ["Krypmispel er navnet på en annen art, Cotoneaster horizontalis. Artsdatabanken kaller denne vintermispel. Er det riktig plante i lista, og hvilket navn skal den ha?"],
+  "Leucanthemum × superbum": ["Prestekrage er den ville arten. Denne hageplanten heter kjempekrage hos Artsdatabanken og i Store norske leksikon. Hvilket navn vil skolen bruke?"],
+  "Tilia × europaea": ["Lind er navnet på arten Tilia cordata. Denne heter parklind hos Artsdatabanken. Er det parklind skolen har, og skal navnet endres?"],
+  "Echinacea purpurea": ["Solhatt brukes også om en annen slekt, Rudbeckia. Artsdatabanken kaller denne purpursolhatt. Hvilket navn vil skolen bruke?"],
+  "Corylus avellana 'Contorta'": ["Trollhassel brukes i Store norske leksikon om en annen slekt, Hamamelis. Plantinor kaller denne vrihassel. Hvilket navn vil skolen bruke?"],
+  "Acer palmatum": ["Artsdatabanken kaller denne viftelønn. Japanlønn er hos dem en annen art, Acer japonicum. Skal navnet japansk lønn beholdes?"],
+  "Symphoricarpos × doorenbosii": [
+    "Snøbær er navnet på arten Symphoricarpos albus. Plantinor kaller denne hybriden hagesnøbær. Hvilket navn vil skolen bruke?",
+    "Sorten 'Arvid' hører trolig til Symphoricarpos albus, ikke til denne hybriden. Den arten har høy risiko på Fremmedartslista. Stemmer det?"
+  ],
+  "Sorbus koehneana": [
+    "Navnet kinarogn ble ikke funnet i noen kilde. Artsdatabanken kaller den kvitrogn. Hvilket navn vil skolen bruke?",
+    "Lista har den under trær, men kildene kaller den en busk. Stemmer det?"
+  ],
+  "Prunus maackii": ["Navnet gullhegg ble ikke funnet i noen kilde. Artsdatabanken kaller den neverhegg. Hvilket navn vil skolen bruke?"],
+  "Robinia pseudoacacia": [
+    "Navnet uekte akasie ble ikke funnet i noen kilde. Artsdatabanken og Store norske leksikon kaller den robinia. Hvilket navn vil skolen bruke?",
+    "Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"
+  ],
+  "Kolkwitzia amabilis": ["Navnet perlemorbusk ble ikke funnet i noen kilde. Artsdatabanken kaller den fagerbusk. Hvilket navn vil skolen bruke?"],
+  "Hydrangea arborescens": ["Navnet skoghortensia ble ikke funnet i noen kilde. Artsdatabanken kaller den vierhortensia. Hvilket navn vil skolen bruke?"],
+  "Potentilla tridentata": ["Navnet tretannmure ble ikke funnet i noen kilde. Artsdatabanken kaller den grønlandsmure, og det latinske navnet er nå Sibbaldia tridentata. Hvilke navn vil skolen bruke?"],
+  "Cimicifuga": ["Navnet sølvlys ble ikke funnet i noen kilde. Plantinor kaller den oktoberormedrue, og det latinske navnet er nå Actaea simplex. Hvilke navn vil skolen bruke?"],
+
+  "Dicentra spectabilis": ["Det latinske navnet er nå Lamprocapnos spectabilis. Skal lista bruke det nye navnet?"],
+  "Ribes grossularia": ["Det latinske navnet er nå Ribes uva-crispa. Skal lista bruke det nye navnet?"],
+  "Parthenocissus vitacea": ["Det latinske navnet er nå Parthenocissus inserta. Skal lista bruke det nye navnet?"],
+  "Perovskia atriplicifolia": [
+    "Det latinske navnet er nå Salvia yangii. Skal lista bruke det nye navnet?",
+    "Lista har den under stauder, men kildene kaller den en busk. Stemmer det?"
+  ],
+  "Stephanandra incisa": ["Det latinske navnet er nå Neillia incisa, og Artsdatabanken kaller den kranstopp. Skal lista bruke de nye navnene?"],
+  "Cornus alba": ["Artsdatabanken bruker det latinske navnet Swida alba og kaller den sibirkornell. Skal lista bruke de nye navnene?"],
+
+  "Philadelphus coronarius": ["Sortene 'Mont Blanc' og 'Manteau d'Hermine' er hybrider, ikke Philadelphus coronarius. Skal de stå et annet sted i lista?"],
+  "Weigela florida": ["Sortene 'Red Prince' og 'Ebony & Ivory' er hybrider, ikke Weigela florida. Skal de stå et annet sted i lista?"],
+  "Lonicera caerulea var. kamtschatica": ["Sorten 'Kirke' er vanlig blåleddved til hekk. Plantinor sier at bærene ikke er spiselige. Hører den hjemme her blant bærbuskene?"],
+  "Prunus incisa": [
+    "Sorten 'Brilliant' hører trolig til Prunus kurilensis, ikke Prunus incisa. Stemmer det?",
+    "Lista har den under trær, men kildene kaller den en busk. Stemmer det?"
+  ],
+  "Aronia melanocarpa": ["Plantinor sier at sorten 'Moskva' er en hybridsurbær, ikke ren svartsurbær. Stemmer det?"],
+
+  "Magnolia stellata": ["Lista har den under trær, men kildene kaller den en busk. Stemmer det?"],
+  "Magnolia (hybrider)": ["Lista har dem under trær, men kildene kaller dem busker. Stemmer det?"],
+  "Caragana arborescens": ["Lista har den under trær, men kildene kaller den en busk. Stemmer det?"],
+  "Lavandula angustifolia": ["Lista har den under stauder, men kildene kaller den en dvergbusk. Stemmer det?"],
+
+  "Prunus nipponica var. kurilensis": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Prunus cerasifera 'Nigra'": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Prunus × cistena": [
+    "Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?",
+    "Hvor planten kommer fra er bare hentet fra Wikipedia. Stemmer det?"
+  ],
+  "Catalpa bignonioides": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Bare Wikipedia sier sone 3. Vet skolen det?"],
+  "Syringa wolfii": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Syringa × henryi": ["Kildene sier nesten ingenting om denne. Bare nettbutikker har tall. Hvor høy blir den, og hvilken herdighetssone tåler den?"],
+  "Syringa (hybrider)": ["Ingen sikker kilde sier hvilken herdighetssone de tåler. Det varierer mellom sortene. Vet skolen det for sortene de har?"],
+  "Salix 'Brekkavier'": ["Kildene sier nesten ingenting om denne. Bare nettbutikker har tall. Hvor høy blir den, og hvilken herdighetssone tåler den?"],
+  "Salix integra 'Hakuro-nishiki'": [
+    "Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?",
+    "Hvor planten kommer fra er bare hentet fra Wikipedia. Stemmer det?"
+  ],
+  "Vitis vinifera": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det for sortene de har?"],
+  "Rheum rhabarbarum": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Asparagus officinalis": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Astilbe": ["Ingen sikker kilde sier hvilken herdighetssone de tåler. Det varierer mellom sortene. Vet skolen det?"],
+  "Paeonia lactiflora": ["Ingen sikker kilde sier hvilken herdighetssone den tåler. Vet skolen det?"],
+  "Rosa": ["Herdighet og høyde varierer mye mellom de rundt 70 sortene, og bare noen få er sjekket hver for seg. Kan skolen si hvilke sortene tåler kaldt klima?"],
+  "Malus domestica": ["Bare noen få av de over 30 eplesortene er sjekket hver for seg. Herdigheten varierer mellom sortene. Kan skolen se over den?"],
+
+  "Pyrus salicifolia": ["Hvor planten kommer fra er bare hentet fra Wikipedia. Stemmer det?"],
+  "Coreopsis verticillata": ["Ingen sikker kilde sier hvor planten kommer fra. Vet skolen det?"]
+}

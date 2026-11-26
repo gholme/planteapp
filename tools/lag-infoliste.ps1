@@ -82,6 +82,27 @@ $r = 2
 foreach ($n in $names) { foreach ($u in @($info.$n.usikkert)) { if ($u) { $ws3.Cells.Item($r,1).Value2 = $n; $ws3.Cells.Item($r,2).Value2 = $u; $r++ } } }
 $ws3.Range('A1:B1').Font.Bold = $true; $ws3.Columns.Item(1).ColumnWidth = 30; $ws3.Columns.Item(2).ColumnWidth = 110; $ws3.Columns.Item(2).WrapText = $true
 
+$sf = Join-Path $root 'data\sjekkliste.json'
+if (Test-Path $sf) {
+  $sj = Get-Content -Raw -Encoding UTF8 $sf | ConvertFrom-Json
+  $ws4 = $wb.Worksheets.Add([System.Reflection.Missing]::Value, $ws3); $ws4.Name = 'Spør på skolen'
+  $hdr = 'Latin', 'Norsk i lista', 'Gruppe', 'Spørsmål', 'Svar fra skolen'
+  for ($k = 0; $k -lt $hdr.Count; $k++) { $ws4.Cells.Item(1, $k + 1).Value2 = $hdr[$k] }
+  $r = 2
+  foreach ($pp in $planter) {
+    $q = $sj.($pp.latin); if (-not $q) { continue }
+    foreach ($s in @($q)) {
+      $ws4.Cells.Item($r,1).Value2 = $pp.latin; $ws4.Cells.Item($r,2).Value2 = $pp.norsk; $ws4.Cells.Item($r,3).Value2 = $pp.gruppe; $ws4.Cells.Item($r,4).Value2 = $s; $r++
+    }
+  }
+  $ws4.Range('A1:E1').Font.Bold = $true
+  $ws4.Columns.Item(1).ColumnWidth = 30; $ws4.Columns.Item(2).ColumnWidth = 22; $ws4.Columns.Item(3).ColumnWidth = 14
+  $ws4.Columns.Item(4).ColumnWidth = 80; $ws4.Columns.Item(5).ColumnWidth = 50
+  $ws4.Columns.Item(4).WrapText = $true; $ws4.Columns.Item(5).WrapText = $true
+  $ws4.Range("E2:E$([Math]::Max(2, $r - 1))").Interior.Color = 0xCCFFFF
+  "Spør på skolen: $($r - 2) spørsmål"
+}
+
 $ws.Activate()
 if (Test-Path $out) { Remove-Item $out -Force -Confirm:$false }
 $wb.SaveAs($out, 51); $wb.Close($false); $xl.Quit()

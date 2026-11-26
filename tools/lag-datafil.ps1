@@ -13,6 +13,12 @@ $inf = Join-Path $root 'data\planteinfo.json'
 if (Test-Path $inf) {
   (Get-Content -Raw -Encoding UTF8 $inf | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $infoMap[$_.Name] = $_.Value }
 }
+$sjekkMap = @{}
+$sf = Join-Path $root 'data\sjekkliste.json'
+if (Test-Path $sf) {
+  (Get-Content -Raw -Encoding UTF8 $sf | ConvertFrom-Json).PSObject.Properties | Where-Object { $_.Name -notlike '_*' } | ForEach-Object { $sjekkMap[$_.Name] = @($_.Value) }
+  foreach ($k in $sjekkMap.Keys) { if (-not ($data | Where-Object { $_.latin -eq $k })) { Write-Warning "sjekkliste.json: fant ikke '$k' i planter.json" } }
+}
 $i = 0; $files = New-Object System.Collections.Generic.List[string]
 $list = foreach ($p in $data) {
   $i++
@@ -31,6 +37,7 @@ $list = foreach ($p in $data) {
     if (-not $files.Contains($b.fil)) { $files.Add($b.fil) }
   }
   if ($infoMap.ContainsKey($p.latin)) { $o.info = $infoMap[$p.latin] }
+  if ($sjekkMap.ContainsKey($p.latin)) { $o.sjekk = $sjekkMap[$p.latin] }
   $o
 }
 $utf8 = New-Object System.Text.UTF8Encoding $false
@@ -39,4 +46,4 @@ $out = "/* Generert av tools/lag-datafil.ps1 - original planteliste */`nwindow.P
 [System.IO.File]::WriteAllText((Join-Path $root 'www\planter-data.js'), $out, $utf8)
 New-Item -ItemType Directory -Force (Join-Path $root 'www\img') | Out-Null
 [System.IO.File]::WriteAllText((Join-Path $root 'www\img\filer.json'), (ConvertTo-Json -InputObject @($files) -Compress), $utf8)
-"Skrev $i planter ($($files.Count) med bilde, $(@($list | Where-Object { $_.info }).Count) med planteinfo) til www/planter-data.js"
+"Skrev $i planter ($($files.Count) med bilde, $(@($list | Where-Object { $_.info }).Count) med planteinfo, $(@($list | Where-Object { $_.sjekk }).Count) til sjekk) til www/planter-data.js"

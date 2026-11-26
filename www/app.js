@@ -61,6 +61,12 @@
     o = ORIG_BY_LATIN[normalize(p.latin)];
     return o && o.info ? o.info : null;
   }
+  // Spørsmål til skolen (data/sjekkliste.json). Hentes alltid fra originallista.
+  function sjekkOf(p) {
+    var o = ORIG_BY_ID[p.id];
+    if (!(o && normalize(o.latin) === normalize(p.latin))) o = ORIG_BY_LATIN[normalize(p.latin)];
+    return o && o.sjekk && o.sjekk.length ? o.sjekk : null;
+  }
   function imgHtml(p, cls) {
     var b = imageOf(p);
     if (!b) return '<div class="noimg ' + (cls || '') + '" aria-hidden="true">🌿</div>';
@@ -777,7 +783,7 @@
   // ---------- Plantelisten med søk og filter ----------
   var MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
   var MONTHS_SHORT = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
-  var listFilter = { q: '', type: [], farge: [], lys: [], mnd: 0, maksHoyde: 0, herdighet: 0, open: false, skole: false };
+  var listFilter = { q: '', type: [], farge: [], lys: [], mnd: 0, maksHoyde: 0, herdighet: 0, open: false, skole: false, sjekk: false };
 
   function filterActive() {
     var f = listFilter;
@@ -798,6 +804,7 @@
       if (key.indexOf(normalize(f.q)) < 0) return false;
     }
     if (f.skole && !hasOwn(p)) return false;
+    if (f.sjekk && !sjekkOf(p)) return false;
     if (!filterActive()) return true;
     var i = infoOf(p);
     if (!i) return false;
@@ -860,7 +867,8 @@
           var pic = shownPic(p, true);
           return '<li class="prow"><a href="#/plante/' + encodeURIComponent(p.id) + '">' + picImg(pic, p.norsk, 'mini') + '<div class="names">' +
             '<div class="latin">' + esc(p.latin) + '</div><div><b>' + esc(p.norsk) + '</b>' + (i ? ' <span class="infodot" title="Har planteinfo">ⓘ</span>' : '') +
-            (hasOwn(p) ? ' <span title="Finnes på skolen">📷</span>' : '') + '</div>' + extra + '</div>' + b + '</a>' +
+            (hasOwn(p) ? ' <span title="Finnes på skolen">📷</span>' : '') +
+            (sjekkOf(p) ? ' <span class="sjekkdot" title="Spør på skolen">❓</span>' : '') + '</div>' + extra + '</div>' + b + '</a>' +
             delBtn(pic, 'rowbtn') + addBtn(p, 'rowbtn') + '</li>';
         }).join('') + '</ul></div>';
     });
@@ -886,9 +894,18 @@
     });
   }
   function schoolChip() {
-    var n = schoolCount();
-    if (!n && !listFilter.skole) return '';
-    return '<div class="chips" style="margin-top:8px"><button class="chip' + (listFilter.skole ? ' on' : '') + '" data-act="lfSchool" aria-pressed="' + listFilter.skole + '">📷 Finnes på skolen (' + n + ')</button></div>';
+    var n = schoolCount(), ns = plants().filter(sjekkOf).length, html = '';
+    if (n || listFilter.skole) html += '<button class="chip' + (listFilter.skole ? ' on' : '') + '" data-act="lfSchool" aria-pressed="' + listFilter.skole + '">📷 Finnes på skolen (' + n + ')</button>';
+    if (ns || listFilter.sjekk) html += '<button class="chip' + (listFilter.sjekk ? ' on' : '') + '" data-act="lfSjekk" aria-pressed="' + listFilter.sjekk + '">❓ Spør på skolen (' + ns + ')</button>';
+    return html ? '<div class="chips" style="margin-top:8px">' + html + '</div>' : '';
+  }
+  function sjekkCard(p) {
+    var s = sjekkOf(p);
+    if (!s) return '';
+    return '<div class="card sjekkcard"><div class="row" style="align-items:center"><h2 style="margin:0">❓ Spør på skolen</h2>' +
+      (canSpeak ? '<button class="btn" data-act="say" data-text="' + esc(s.join(' ')) + '" style="flex:0 0 auto;width:auto;min-height:44px">🔊 Les opp</button>' : '') + '</div>' +
+      '<ul class="bullets" style="margin-top:10px">' + s.map(function (k) { return '<li>' + esc(k) + '</li>'; }).join('') + '</ul>' +
+      '<p class="small muted">Kildene er usikre eller stemmer ikke med lista her. Skriv svaret i Merknad under ✏️ Rediger, og send en sikkerhetskopi. Da kan lista rettes.</p></div>';
   }
   function refreshList() {
     document.getElementById('filterWrap').innerHTML = schoolChip() + filterPanel();
@@ -926,7 +943,7 @@
       '<div class="nameline"><span class="norsk" style="font-size:1.3rem">' + esc(p.norsk) + '</span>' + sayBtn(p.norsk, 'small') + '</div>' +
       '<div class="meta">' + esc(p.gruppe || '') + '</div>' +
       (own.length ? '<div class="zonebadge ok">📷 Finnes på skolen · ' + own.length + (own.length === 1 ? ' eget bilde' : ' egne bilder') + '</div>' : '') +
-      zoneBadge(p) + '</div>';
+      zoneBadge(p) + '</div>' + sjekkCard(p);
 
     if (!i) {
       html += '<div class="card small muted">Det er ikke lagt inn planteinfo for denne planten ennå.</div>';
@@ -1164,6 +1181,7 @@
       case 'pic': plantPicIdx[el.getAttribute('data-id')] = +el.getAttribute('data-i'); refresh(); break;
       case 'school': st.onlySchool = !st.onlySchool; save(); render(); break;
       case 'lfSchool': listFilter.skole = !listFilter.skole; refreshList(); break;
+      case 'lfSjekk': listFilter.sjekk = !listFilter.sjekk; refreshList(); break;
       case 'back': if (history.length > 1) history.back(); else go('#/liste'); break;
       case 'setZone': state.settings.sone = +el.getAttribute('data-z'); save(); render(); break;
       case 'lfToggle': listFilter.open = !listFilter.open; refreshList(); break;
