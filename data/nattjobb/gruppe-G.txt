@@ -1,0 +1,12 @@
+- Latin (nøkkel): Salix purpurea 'Nana' | Norsk i lista: Purpurpil | Gruppe: Busker | Sorter i lista: 
+- Latin (nøkkel): Salix 'Brekkavier' | Norsk i lista: Vier | Gruppe: Busker | Sorter i lista: Brekkavier
+- Latin (nøkkel): Salix lanata | Norsk i lista: Ullvier | Gruppe: Busker | Sorter i lista: Skodde
+- Latin (nøkkel): Salix integra 'Hakuro-nishiki' | Norsk i lista: Japansk pil | Gruppe: Busker | Sorter i lista: 
+- Latin (nøkkel): Salix helvetica | Norsk i lista: Sveitsvier | Gruppe: Busker | Sorter i lista: 
+- Latin (nøkkel): Frangula alnus | Norsk i lista: Trollhegg | Gruppe: Busker | Sorter i lista: Fine Line
+- Latin (nøkkel): Malus domestica | Norsk i lista: Eple | Gruppe: Frukt og bær | Sorter i lista: Aroma, Discovery, Gravenstein, Summerred, Filippa, Katja, Rescue, Antonovka, Huvitus, Punakaneli, Talvikaneli, Uusikaneli, Keltakaneli, Sarso, Borgovskoje, Chestnut, Krasnaja Rannaja, Kymppitonni, Medunitsa, Valkeakuulas, Sariola, Valkealan Syys, Afrodita, Auksis, Zarja Alatau, Silva, Punahilkka, Punainen Melba, Rubinola, Oserelije Moskovskoje, Sholnisko (?), Familietre
+- Latin (nøkkel): Pyrus communis | Norsk i lista: Pære | Gruppe: Frukt og bær | Sorter i lista: Lada, Tsjizjovskaja (Sisa), Herrepære, Gråpære, Familietre
+- Latin (nøkkel): Prunus cerasus | Norsk i lista: Surkirsebær | Gruppe: Frukt og bær | Sorter i lista: Huvimaja, Suklaakirsikka
+- Latin (nøkkel): Prunus domestica | Norsk i lista: Plomme | Gruppe: Frukt og bær | Sorter i lista: Victoria, Opal, Jubileum, Kuokkala, Sinikka, Siivosen keltaluumu, Vaarinluumu, Yleinen keltaluumu, Koetarhan vaskyna
+- Latin (nøkkel): Aronia melanocarpa | Norsk i lista: Svartsurbær | Gruppe: Frukt og bær | Sorter i lista: Moskva
+- Latin (nøkkel): Hippophae rhamnoides | Norsk i lista: Tindved | Gruppe: Frukt og bær | Sorter i lista: Julia, Romeo, Hikul

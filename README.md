@@ -19,6 +19,8 @@ og uten byggesteg. Den virker offline og lagrer alt lokalt på enheten (localSto
 | `tools/kontaktark.ps1` | Lager oversiktsark over alle bildene for kontroll. |
 | `tools/komprimer-bilder.ps1` | Krymper bildene (480 px, JPEG 78) – kjør etter nye bilder. |
 | `data/planteinfo.json` | Planteinfo (høyde, blomstring, herdighet, kjennetegn …) med kilder per felt. Nøkkel = latinsk navn. |
+| `tools/sjekk-planteinfo.ps1` | Kontrollerer planteinfo: kilde per felt, faste ordlister, ingen forkortelser i tekst som leses opp. |
+| `data/nattjobb/` | Oppdrag, agentenes rådata og `RAPPORT.md` fra utfyllingen av planteinfo (navneavvik m.m.). |
 | `tools/lag-infoliste.ps1` | Lager `Kontrolliste_planteinfo.xlsx` (verdier med kildenummer, kilder, usikre felt). |
 | `.github/workflows/pages.yml` | Publiserer `www/` til GitHub Pages ved push til `main`. |
 | `DEPLOY.md` | Steg for steg: konto, publisering og installasjon på telefon. |

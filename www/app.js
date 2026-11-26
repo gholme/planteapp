@@ -260,6 +260,7 @@
       .replace(/\bpH\b/g, 'p H')
       // Soner, mål og intervaller
       .replace(/H(\d)–H(\d)/g, 'sone $1 til $2')
+      .replace(/(\d\s?c?m)\s–\s(\d)/g, '$1 til $2')
       .replace(/(\d)\s?cm\b/g, '$1 centimeter')
       .replace(/(\d)\s?m\b/g, '$1 meter')
       .replace(/\s[–·]\s/g, ', ')
@@ -271,6 +272,8 @@
       .replace(/\s*[()]\s*/g, ', ')
       .replace(/(,\s*)+/g, ', ')
       .replace(/,\s*([.!?]|$)/g, '$1')
+      .replace(/([.!?])\s*,/g, '$1')
+      .replace(/\.(\s*\.)+/g, '.')
       .trim();
   }
   function speak(t) {

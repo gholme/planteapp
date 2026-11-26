@@ -11,7 +11,7 @@ $names = @($info.PSObject.Properties.Name)
 $mnd = 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'
 
 $fields = @(
-  @('navn_artsdatabanken','Navn hos Artsdatabanken'), @('norsk_navn_kilde','Norsk navn (kilde)'), @('plantetype','Plantetype'), @('lovfelling','Løvfellende/vintergrønn'),
+  @('navn_artsdatabanken','Navn hos Artsdatabanken'), @('norsk_navn_kilde','Norsk navn (kilde)'), @('navneavvik','Navneavvik mot lista'),@('plantetype','Plantetype'), @('lovfelling','Løvfellende/vintergrønn'),
   @('hoyde_cm','Høyde (cm)'), @('bredde_cm','Bredde (cm)'), @('veksthastighet','Veksthastighet'),
   @('blomsterfarge','Blomsterfarge'), @('blomstring_mnd','Blomstringstid'), @('bladverk','Bladverk'),
   @('lys','Lys'), @('jord','Jord'), @('herdighet_maks','Herdighet'), @('planteavstand_cm','Planteavstand (cm)'),
